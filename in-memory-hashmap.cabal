@@ -1,0 +1,70 @@
+cabal-version:      2.4
+name:               in-memory-hashmap
+version:            0.1.0.0
+
+-- A short (one-line) description of the package.
+-- synopsis:
+
+-- A longer description of the package.
+-- description:
+
+-- A URL where users can report bugs.
+-- bug-reports:
+
+-- The license under which the package is released.
+-- license:
+author:             Abhishek Singh
+
+-- An email address to which users can send suggestions, bug reports, and patches.
+-- maintainer:
+
+-- A copyright notice.
+-- copyright:
+-- category:
+extra-source-files: CHANGELOG.md
+
+executable in-memory-hashmap
+    main-is:                Main.hs
+    other-modules:          Storage.Types.Address
+                 ,          Storage.Types.Album
+                 ,          Storage.Types.Artist
+                 ,          Storage.Types.Customer
+                 ,          Storage.Types.Cache
+                 ,          Storage.Types.DB
+                 ,          Storage.Types.Employee
+                 ,          Storage.Types.Genre
+                 ,          Storage.Types.Invoice
+                 ,          Storage.Types.InvoiceLine
+                 ,          Storage.Types.MediaType
+                 ,          Storage.Types.Playlist
+                 ,          Storage.Types.PlaylistTrack
+                 ,          Storage.Types.Track
+                 ,          Storage.Queries.Artist
+                 ,          Storage.Queries.DBQueries
+                 ,          Storage.Queries.CacheQueries
+                 ,          Storage.QueriesMiddleware.Artist
+                 ,          Reader
+    default-extensions:    StandaloneDeriving
+                      ,    FlexibleInstances
+                      ,    MultiParamTypeClasses
+                      ,    TypeFamilies
+                      ,    DeriveGeneric
+                      ,    DeriveAnyClass
+                      ,    DuplicateRecordFields
+                      ,    FlexibleContexts
+                      ,    OverloadedStrings
+                      ,    RecordWildCards
+    build-depends:         base
+                 ,         sqlite-simple
+                 ,         beam-sqlite
+                 ,         beam-core
+                 ,         beam-migrate
+                 ,         scientific
+                 ,         time
+                 ,         text
+                 ,         transformers
+                 ,         unordered-containers
+                 ,         containers
+    ghc-options: -Wall
+    hs-source-dirs:        app
+    default-language: Haskell2010

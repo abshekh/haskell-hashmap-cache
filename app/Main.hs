@@ -37,6 +37,9 @@ app = do
   artist1'' <- selectOneArtistByName "AC/DC"
   lift $ print artist1''
 
+  cache <- showCache
+  lift $ putStrLn $ "cache: " ++ cache
+
   -- artist2 <- selectOneArtistById 2
   -- lift $ print artist2
   --

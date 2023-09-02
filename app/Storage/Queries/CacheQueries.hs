@@ -25,6 +25,12 @@ updateOne (prefix, fkey) value = do
   cache <- R.getCache
   lift $ modifyMVar_ cache (return . HM.insert (pack $ prefix ++ fkey ++ "fkey") value)
 
+insertOne' :: (String, String, String) -> Cache -> R.ReaderIO ()
+insertOne' (prefix, key, fkey) value = do
+  cache <- R.getCache
+  lift $ modifyMVar_ cache (return . HM.insert (pack $ prefix ++ fkey ++ "fkey") value)
+  lift $ modifyMVar_ cache (return . HM.insert (pack $ prefix ++ key) (ForeignKey $ pack $ prefix ++ fkey ++ "fkey"))
+
 insertOne :: (String, [String], String) -> Cache -> R.ReaderIO ()
 insertOne (prefix, key, fkey) value = do
   cache <- R.getCache
@@ -43,7 +49,7 @@ insertOne (prefix, key, fkey) value = do
 selectOrInsertInCache ::
   (t -> ReaderIO (Maybe a1)) ->
   (t -> ReaderIO (Maybe a1)) ->
-  (a1 -> ReaderIO ()) ->
+  (a1 -> t -> ReaderIO ()) ->
   t ->
   ReaderIO (Maybe a1)
 selectOrInsertInCache selectOneMaybeCache selectOneMaybeDB insertOneCache filterBy = do
@@ -57,6 +63,6 @@ selectOrInsertInCache selectOneMaybeCache selectOneMaybeDB insertOneCache filter
       lift $ putStrLn "Not Found in cache, found in DB"
       case r' of
         Just val -> do
-          insertOneCache val
+          insertOneCache val filterBy
           return r'
         _ -> return Nothing

@@ -20,4 +20,5 @@ data Cache
   | ArtistCache Artist
   | CustomerCache Customer
   | ForeignKey Text
+  | ForeignKeys [Text]
   deriving (Show)

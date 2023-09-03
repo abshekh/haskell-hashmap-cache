@@ -1,4 +1,5 @@
-- haven't looked into atomic insert, updates and lookups. should be simple with MVar
-- TTL should be just for values or foreign keys as well
-- select the whole table?
-    - Should there be a filterby clause for this? techically we are not filtering anything
+- meaningfull names?
+- haven't looked into atomic insert, updates and lookups. should be simple with takeMVar/tryTakeMVar
+- TTL should be just for table values or value reference as well
+    - value reference would be better/easier to implement
+    - if ttl is associated to table values, then in case of [table values], different rows may have different ttls

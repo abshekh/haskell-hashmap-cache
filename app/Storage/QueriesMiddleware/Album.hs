@@ -14,3 +14,6 @@ selectOneAlbumByTitle title = selectOneMaybeAlbumCache (FilterByAlbumTitle title
 
 selectManyAlbumByArtist :: Int32 -> R.ReaderIO [Album]
 selectManyAlbumByArtist id' = selectManyAlbumCache (FilterByArtistId id')
+
+selectAllAlbum :: R.ReaderIO [Album]
+selectAllAlbum = selectAllAlbumCache

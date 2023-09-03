@@ -1,7 +1,7 @@
 module Storage.Queries.CacheQueries where
 
 import Control.Concurrent (modifyMVar_, readMVar)
-import Control.Monad (forM_)
+import Control.Monad (forM_, void)
 import Control.Monad.Trans.Class (MonadTrans (lift))
 import qualified Data.HashMap.Strict as HM
 import Data.Text hiding (foldr, map, null)
@@ -68,17 +68,33 @@ insertOne prefix key fkey value = do
                 (ForeignKey foreignKey)
           )
 
-insertMany' :: String -> String -> String -> [Cache] -> R.ReaderIO ()
-insertMany' prefix key fkey = mapM_ (insertOne' prefix key fkey)
-
-insertMany :: String -> [String] -> String -> [Cache] -> R.ReaderIO ()
-insertMany prefix keys fkey = mapM_ (insertOne prefix keys fkey)
+insertMany :: String -> String -> [([String], String, Cache)] -> R.ReaderIO ()
+insertMany prefix key args = do
+  cache <- R.getCache
+  fkeys <- mapM insertAndReturnForeignKeys args
+  lift $ modifyMVar_ cache (return . HM.insert (getKey prefix key) (ForeignKeys fkeys))
+  where
+    insertAndReturnForeignKeys (allKeys, fkey, value) = do
+      cache <- R.getCache
+      let foreignKey = getForeignKey prefix fkey
+      lift $ modifyMVar_ cache (return . HM.insert foreignKey value)
+      lift $
+        forM_ allKeys $
+          \k ->
+            modifyMVar_
+              cache
+              ( return
+                  . HM.insert
+                    (getKey prefix k)
+                    (ForeignKey foreignKey)
+              )
+      return foreignKey
 
 selectOrInsertInCache ::
   (Foldable m, Traversable m, Show f) =>
   (f -> ReaderIO (m a)) ->
   (f -> ReaderIO (m a)) ->
-  (a -> f -> ReaderIO b) ->
+  (m a -> f -> ReaderIO b) ->
   f ->
   ReaderIO (m a)
 selectOrInsertInCache selectCache selectDB insertCache filterBy = do
@@ -87,7 +103,7 @@ selectOrInsertInCache selectCache selectDB insertCache filterBy = do
     then do
       r' <- selectDB filterBy
       lift $ putStrLn $ "Not Found in cache, found in DB for filterBy: " ++ show filterBy
-      mapM_ (`insertCache` filterBy) r'
+      void $ insertCache r' filterBy
       return r'
     else do
       lift $ putStrLn $ "Found in cache for filterBy: " ++ show filterBy

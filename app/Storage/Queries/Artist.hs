@@ -50,14 +50,15 @@ selectOneMaybeArtistCache =
         Just (ArtistCache artist) -> Just artist
         _ -> Nothing
 
-insertOneArtistCache :: Artist -> FilterByOne -> R.ReaderIO ()
-insertOneArtistCache artist filterBy = do
+insertOneArtistCache :: Maybe Artist -> FilterByOne -> R.ReaderIO ()
+insertOneArtistCache (Just artist) filterBy = do
   let prefix = getDbTableName
       fkey = show $ B.primaryKey artist
       keyName = getKey (Proxy :: Proxy Artist) filterBy
       allKeys' = getAllKeys artist (Proxy :: Proxy FilterByOne)
       allKeys = keyName : allKeys'
   CQ.insertOne prefix allKeys fkey (ArtistCache artist)
+insertOneArtistCache Nothing _ = return ()
 
 
 getPredicate ::

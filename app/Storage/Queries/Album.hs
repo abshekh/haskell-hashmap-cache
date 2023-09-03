@@ -14,6 +14,7 @@ import Storage.Types.Cache (Cache (AlbumCache))
 import Storage.Types.CacheClass
 import Storage.Types.CacheTH
 import qualified Storage.Types.DB as DB
+import Control.Monad.Trans.Class (MonadTrans(lift))
 
 getDbTable :: B.DatabaseEntity be DB.ChinookDb (B.TableEntity AlbumT)
 getDbTable = DB._album DB.chinookDb
@@ -49,6 +50,9 @@ selectManyAlbum filterBy = do
       dbTable = getDbTable
   Q.selectMany dbTable predicate
 
+selectAllAlbum :: R.ReaderIO [Album]
+selectAllAlbum = Q.selectAll getDbTable
+
 selectOneMaybeAlbumCache :: FilterByOneData -> R.ReaderIO (Maybe Album)
 selectOneMaybeAlbumCache =
   CQ.selectOrInsertInCache
@@ -64,23 +68,37 @@ selectOneMaybeAlbumCache =
         Just (AlbumCache album) -> Just album
         _ -> Nothing
 
-insertOneAlbumCache :: Album -> FilterByOneData -> R.ReaderIO ()
-insertOneAlbumCache album filterBy = do
+insertOneAlbumCache :: Maybe Album -> FilterByOneData -> R.ReaderIO ()
+insertOneAlbumCache (Just album) filterBy = do
   let prefix = getDbTableName
       fkey = show $ B.primaryKey album
       keyName = getKey (Proxy :: Proxy Album) filterBy
       allKeys' = getAllKeys album (Proxy :: Proxy FilterByOneData)
       allKeys = keyName : allKeys'
   CQ.insertOne prefix allKeys fkey (AlbumCache album)
+insertOneAlbumCache Nothing _ = return ()
 
-insertManyAlbumCache :: Album -> FilterByManyData -> R.ReaderIO ()
-insertManyAlbumCache album filterBy = do
-  let prefix = getDbTableName
-      fkey = show $ B.primaryKey album
-      keyName = getKey (Proxy :: Proxy Album) filterBy
-      allKeys' = getAllKeys album (Proxy :: Proxy FilterByOneData)
-      allKeys = keyName : allKeys'
-  CQ.insertOne prefix allKeys fkey (AlbumCache album)
+insertManyAlbumCache :: [Album] -> FilterByManyData -> R.ReaderIO ()
+insertManyAlbumCache albums filterBy = do
+  let keyName = getKey (Proxy :: Proxy Album) filterBy
+  let cacheArgs = map getCacheArgs albums
+  CQ.insertMany getDbTableName keyName cacheArgs
+  where
+    getCacheArgs album = do
+      let allKeys = getAllKeys album (Proxy :: Proxy FilterByOneData)
+          fkey = show $ B.primaryKey album
+      (allKeys, fkey, AlbumCache album)
+
+insertManyAlbumCache' :: [Album] -> String -> R.ReaderIO ()
+insertManyAlbumCache' albums keyName = do
+  let cacheArgs = map getCacheArgs albums
+  CQ.insertMany getDbTableName keyName cacheArgs
+  where
+    getCacheArgs album = do
+      let allKeys = getAllKeys album (Proxy :: Proxy FilterByOneData)
+          fkey = show $ B.primaryKey album
+      (allKeys, fkey, AlbumCache album)
+
 
 selectManyAlbumCache :: FilterByManyData -> R.ReaderIO [Album]
 selectManyAlbumCache =
@@ -92,6 +110,34 @@ selectManyAlbumCache =
     selectManyAlbumCacheHelper filterBy = do
       let prefix = getDbTableName
           keyName = getKey (Proxy :: Proxy Album) filterBy
+      cache <- CQ.selectMany prefix keyName
+      return $
+        foldr
+          ( \c acc ->
+              case c of
+                (AlbumCache a) -> a : acc
+                _ -> acc
+          )
+          []
+          cache
+
+selectAllAlbumCache :: R.ReaderIO [Album]
+selectAllAlbumCache = do
+  albums <- selectAllAlbumCacheHelper
+  if null albums then do
+    lift $ putStrLn "Not found: all Albums in cache, querying DB"
+    albums' <- selectAllAlbum
+    if null albums' then return albums'
+    else do
+      insertManyAlbumCache' albums' "Table"
+      return albums'
+  else do
+    lift $ putStrLn "Found: all Albums in cache"
+    return albums
+  where
+    selectAllAlbumCacheHelper = do
+      let prefix = getDbTableName
+          keyName = "Table"
       cache <- CQ.selectMany prefix keyName
       return $
         foldr

@@ -29,38 +29,49 @@ main = do
 
 app :: R.ReaderIO ()
 app = do
-  artist1 <- selectOneArtistById 1
-  lift $ print artist1
+  artist <- selectOneArtistById 1
+  lift $ print artist
   lift $ putStrLn ""
 
-  artist1 <- selectOneArtistById 1
-  lift $ print artist1
+  artist <- selectOneArtistById 1
+  lift $ print artist
   lift $ putStrLn ""
 
-  artist1 <- selectOneArtistByName "AC/DC"
-  lift $ print artist1
+  artist <- selectOneArtistByName "AC/DC"
+  lift $ print artist
   lift $ putStrLn ""
 
-  artist1 <- selectOneArtistByNameAndNameL "AC/DC"
-  lift $ print artist1
-  lift $ putStrLn ""
+  -- artist <- selectOneArtistByNameAndNameL "AC/DC"
+  -- lift $ print artist
+  -- lift $ putStrLn ""
+  --
+  -- artist <- selectOneArtistByNameAndNameL "AC/DC"
+  -- lift $ print artist
+  -- lift $ putStrLn ""
 
-  artist1 <- selectOneArtistByNameAndNameL "AC/DC"
-  lift $ print artist1
-  lift $ putStrLn ""
+  -- album <- selectManyAlbumByArtist 1
+  -- lift $ print album
+  -- lift $ putStrLn ""
+  --
+  -- album <- selectManyAlbumByArtist 1
+  -- lift $ print album
+  -- lift $ putStrLn ""
+  --
+  -- albums <- selectAllAlbum
+  -- lift $ putStrLn ""
 
-  album1 <- selectManyAlbumByArtist 1
-  lift $ print album1
-  lift $ putStrLn ""
+  -- album <- selectOneAlbumById 1
+  -- lift $ print album
+  -- lift $ putStrLn ""
 
-  cache <- showCache
-  lift $ putStrLn $ "cache: " ++ cache
+  -- cache <- showCache
+  -- lift $ putStrLn $ "cache: " ++ cache
 
 anotherApp :: R.ReaderIO ()
 anotherApp = do
   env <- ask
   void $ lift $ forkIO $ do
-    threadDelay (5 * 1000000) -- 10 sec
+    threadDelay (5 * 1000000) -- 5 sec
     c1 <- liftIO $ runReaderT showCache env
     putStrLn $ "thread1 cache: " ++ c1
   void $ lift $ forkIO $ do

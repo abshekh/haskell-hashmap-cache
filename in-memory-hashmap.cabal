@@ -43,9 +43,11 @@ executable in-memory-hashmap
                  ,          Storage.Types.PlaylistTrack
                  ,          Storage.Types.Track
                  ,          Storage.Queries.Artist
+                 ,          Storage.Queries.Album
                  ,          Storage.Queries.DBQueries
                  ,          Storage.Queries.CacheQueries
                  ,          Storage.QueriesMiddleware.Artist
+                 ,          Storage.QueriesMiddleware.Album
                  ,          Reader
     default-extensions:    StandaloneDeriving
                       ,    FlexibleInstances

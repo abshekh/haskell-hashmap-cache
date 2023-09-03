@@ -8,7 +8,7 @@ import Storage.Types.Artist
 data AlbumT f = Album
   { albumId :: Columnar f Int32,
     albumTitle :: Columnar f Text,
-    albumArtist :: PrimaryKey ArtistT f
+    artistId :: Columnar f Int32
   }
   deriving (Generic)
 

@@ -1,0 +1,4 @@
+- haven't looked into atomic insert, updates and lookups. should be simple with MVar
+- TTL should be just for values or foreign keys as well
+- select the whole table?
+    - Should there be a filterby clause for this? techically we are not filtering anything

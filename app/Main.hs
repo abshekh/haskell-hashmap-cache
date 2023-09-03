@@ -1,6 +1,6 @@
 module Main where
 
-import Control.Concurrent (forkIO, newMVar, putMVar, takeMVar, threadDelay, readMVar)
+import Control.Concurrent (forkIO, newMVar, putMVar, readMVar, takeMVar, threadDelay)
 import Control.Monad (void)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Trans.Class (MonadTrans (lift))
@@ -8,6 +8,7 @@ import Control.Monad.Trans.Reader (ReaderT (runReaderT), ask)
 import qualified Data.HashMap.Strict as HM
 import Database.SQLite.Simple (open)
 import qualified Reader as R
+import Storage.QueriesMiddleware.Album
 import Storage.QueriesMiddleware.Artist
 import Storage.Types.Artist
 import Storage.Types.Cache (Cache (ArtistCache))
@@ -30,30 +31,30 @@ app :: R.ReaderIO ()
 app = do
   artist1 <- selectOneArtistById 1
   lift $ print artist1
+  lift $ putStrLn ""
 
-  artist1' <- selectOneArtistById 1
-  lift $ print artist1'
+  artist1 <- selectOneArtistById 1
+  lift $ print artist1
+  lift $ putStrLn ""
 
-  artist1'' <- selectOneArtistByName "AC/DC"
-  lift $ print artist1''
+  artist1 <- selectOneArtistByName "AC/DC"
+  lift $ print artist1
+  lift $ putStrLn ""
+
+  artist1 <- selectOneArtistByNameAndNameL "AC/DC"
+  lift $ print artist1
+  lift $ putStrLn ""
+
+  artist1 <- selectOneArtistByNameAndNameL "AC/DC"
+  lift $ print artist1
+  lift $ putStrLn ""
+
+  album1 <- selectManyAlbumByArtist 1
+  lift $ print album1
+  lift $ putStrLn ""
 
   cache <- showCache
   lift $ putStrLn $ "cache: " ++ cache
-
-  -- artist2 <- selectOneArtistById 2
-  -- lift $ print artist2
-  --
-  -- artist2' <- selectOneArtistById 2
-  -- lift $ print artist2'
-  --
-  -- artist3 <- selectOneArtistByName "Aerosmith"
-  -- lift $ print artist3
-  --
-  -- artist3' <- selectOneArtistByName "Aerosmith"
-  -- lift $ print artist3'
-  --
-  -- artist4 <- selectOneArtistByName "Audioslave"
-  -- lift $ print artist4
 
 anotherApp :: R.ReaderIO ()
 anotherApp = do

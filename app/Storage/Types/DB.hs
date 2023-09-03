@@ -81,7 +81,7 @@ chinookDb =
     `withDbModification` ( dbModification
                              { _album =
                                  setEntityName "Album"
-                                   <> modifyTableFields (Album.Album "AlbumId" "Title" (Artist.ArtistId "ArtistId")),
+                                   <> modifyTableFields (Album.Album "AlbumId" "Title" "ArtistId"),
                                _artist =
                                  setEntityName "Artist"
                                    <> modifyTableFields (Artist.Artist "ArtistId" "Name"),

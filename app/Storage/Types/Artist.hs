@@ -2,7 +2,11 @@ module Storage.Types.Artist where
 
 import Data.Int (Int32)
 import Data.Text (Text)
-import Database.Beam (Beamable, Columnar, Generic, Identity, Table (..))
+import Database.Beam (Beamable, Columnar, Generic, Identity, Table (..), (==.))
+import qualified Database.Beam as B
+import qualified Database.Beam.Sqlite as Sqlite
+import Storage.Types.CacheTH
+import Storage.Types.FilterBy (FilterByTrait (..))
 
 data ArtistT f = Artist
   { artistId :: Columnar f Int32,

@@ -1,6 +1,6 @@
 module Main where
 
-import Control.Concurrent (forkIO, newMVar, putMVar, takeMVar, threadDelay, readMVar)
+import Control.Concurrent (forkIO, newMVar, putMVar, readMVar, takeMVar, threadDelay)
 import Control.Monad (void)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Trans.Class (MonadTrans (lift))
@@ -8,6 +8,7 @@ import Control.Monad.Trans.Reader (ReaderT (runReaderT), ask)
 import qualified Data.HashMap.Strict as HM
 import Database.SQLite.Simple (open)
 import qualified Reader as R
+import Storage.QueriesMiddleware.Album
 import Storage.QueriesMiddleware.Artist
 import Storage.Types.Artist
 import Storage.Types.Cache (Cache (ArtistCache))
@@ -28,35 +29,49 @@ main = do
 
 app :: R.ReaderIO ()
 app = do
-  artist1 <- selectOneArtistById 1
-  lift $ print artist1
+  artist <- selectOneArtistById 1
+  lift $ print artist
+  lift $ putStrLn ""
 
-  artist1' <- selectOneArtistById 1
-  lift $ print artist1'
+  artist <- selectOneArtistById 1
+  lift $ print artist
+  lift $ putStrLn ""
 
-  artist1'' <- selectOneArtistByName "AC/DC"
-  lift $ print artist1''
+  -- artist <- selectOneArtistByName "AC/DC"
+  -- lift $ print artist
+  -- lift $ putStrLn ""
 
-  -- artist2 <- selectOneArtistById 2
-  -- lift $ print artist2
+  -- artist <- selectOneArtistByNameAndNameL "AC/DC"
+  -- lift $ print artist
+  -- lift $ putStrLn ""
   --
-  -- artist2' <- selectOneArtistById 2
-  -- lift $ print artist2'
+  -- artist <- selectOneArtistByNameAndNameL "AC/DC"
+  -- lift $ print artist
+  -- lift $ putStrLn ""
+
+  -- album <- selectManyAlbumByArtist 1
+  -- lift $ print album
+  -- lift $ putStrLn ""
   --
-  -- artist3 <- selectOneArtistByName "Aerosmith"
-  -- lift $ print artist3
+  -- album <- selectManyAlbumByArtist 1
+  -- lift $ print album
+  -- lift $ putStrLn ""
   --
-  -- artist3' <- selectOneArtistByName "Aerosmith"
-  -- lift $ print artist3'
-  --
-  -- artist4 <- selectOneArtistByName "Audioslave"
-  -- lift $ print artist4
+  -- albums <- selectAllAlbum
+  -- lift $ putStrLn ""
+
+  -- album <- selectOneAlbumById 1
+  -- lift $ print album
+  -- lift $ putStrLn ""
+
+  cache <- showCache
+  lift $ putStrLn $ "cache: " ++ cache
 
 anotherApp :: R.ReaderIO ()
 anotherApp = do
   env <- ask
   void $ lift $ forkIO $ do
-    threadDelay (5 * 1000000) -- 10 sec
+    threadDelay (5 * 1000000) -- 5 sec
     c1 <- liftIO $ runReaderT showCache env
     putStrLn $ "thread1 cache: " ++ c1
   void $ lift $ forkIO $ do

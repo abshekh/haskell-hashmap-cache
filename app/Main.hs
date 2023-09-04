@@ -37,9 +37,9 @@ app = do
   lift $ print artist
   lift $ putStrLn ""
 
-  artist <- selectOneArtistByName "AC/DC"
-  lift $ print artist
-  lift $ putStrLn ""
+  -- artist <- selectOneArtistByName "AC/DC"
+  -- lift $ print artist
+  -- lift $ putStrLn ""
 
   -- artist <- selectOneArtistByNameAndNameL "AC/DC"
   -- lift $ print artist
@@ -64,8 +64,8 @@ app = do
   -- lift $ print album
   -- lift $ putStrLn ""
 
-  -- cache <- showCache
-  -- lift $ putStrLn $ "cache: " ++ cache
+  cache <- showCache
+  lift $ putStrLn $ "cache: " ++ cache
 
 anotherApp :: R.ReaderIO ()
 anotherApp = do

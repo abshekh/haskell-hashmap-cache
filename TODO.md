@@ -1,5 +1,0 @@
-- meaningfull names?
-- haven't looked into atomic insert, updates and lookups. should be simple with takeMVar/tryTakeMVar
-- TTL should be just for table values or value reference as well
-    - value reference would be better/easier to implement
-    - if ttl is associated to table values, then in case of [table values], different rows may have different ttls

@@ -65,12 +65,17 @@ handleGetAllKeys tableRecordName filterByName = do
       let (fname, _) = filterTypeInfo
       let (tname, _) = tableRecordInfo
       let cons = getFilterByConsInTableRecord tableRecordInfo filterTypeInfo
-      matches <- getMatches showE (tname, cons) fname
-      return $
-        CaseE
-          (VarE tableRecord)
-          [matches]
-    getFilterByConsInTableRecord (_, tCons) (_, fCons) = intersectBy ((==) `on` fst) fCons tCons
+      if null cons then do
+        return $ LitE $ StringL ""
+      else do
+        matches <- getMatches showE (tname, cons) fname
+        return $
+          CaseE
+            (VarE tableRecord)
+            [matches]
+    getFilterByConsInTableRecord (_, tCons) (_, fCons) = do
+      let cons = intersectBy ((==) `on` fst) fCons tCons
+      if length cons == length fCons then cons else []
     getMatches showE (pname, cnames) fname = do
       wildCNames <- mapM getWildNames cnames
       let wildCPatterns = map (second VarP) wildCNames
@@ -95,6 +100,6 @@ deriveCacheClass :: Name -> Name -> Q [Dec]
 deriveCacheClass tableRecordName filterByName = do
   [d|
     instance CacheClass $(conT tableRecordName) $(conT filterByName) where
-      getAllKeys _tableRecord Proxy = $(handleGetAllKeys tableRecordName filterByName)
+      getAllKeys _tableRecord Proxy = filter (not . null) $(handleGetAllKeys tableRecordName filterByName)
       getKey Proxy _filterBy = $(handleGetKey filterByName)
     |]

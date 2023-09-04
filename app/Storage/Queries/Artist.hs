@@ -3,7 +3,7 @@ module Storage.Queries.Artist where
 import Data.Data (Proxy (Proxy))
 import Data.Int (Int32)
 import Data.Text (Text)
-import Database.Beam ((==.), (||.))
+import Database.Beam ((==.), (||.), (&&.))
 import qualified Database.Beam as B
 import qualified Reader as R
 import qualified Storage.Queries.CacheQueries as CQ
@@ -24,7 +24,8 @@ getDbTableName = "Artist"
 data FilterByOne
   = FilterByName {artistName :: Text}
   | FilterById {artistId :: Int32}
-  | FilterByArtistNameOrArtistNameL {artistName :: Text, artistNameL :: Text}
+  -- | FilterByArtistIdAndArtistName {artistId :: Int32, artistName :: Text}
+  -- | FilterByArtistNameOrArtistNameL {artistName :: Text, artistNameL :: Text}
   deriving (Show)
 
 $(deriveCacheClass ''Artist ''FilterByOne)
@@ -67,7 +68,8 @@ getPredicate ::
   -> B.QGenExpr B.QValueContext Sqlite s B.SqlBool
 getPredicate (FilterById id') = \Artist {..} -> B.sqlBool_ (artistId ==. B.val_ id')
 getPredicate (FilterByName name) = \Artist {..} -> B.sqlBool_ (artistName ==. B.val_ name)
-getPredicate (FilterByArtistNameOrArtistNameL name nameL) = \Artist {..} -> B.sqlBool_ ((artistName ==. B.val_ name) ||. (artistName ==. B.val_ nameL))
+-- getPredicate (FilterByArtistIdAndArtistName id' name) = \Artist {..} -> B.sqlBool_ ((artistId ==. B.val_ id') &&. (artistName ==. B.val_ name))
+-- getPredicate (FilterByArtistNameOrArtistNameL name nameL) = \Artist {..} -> B.sqlBool_ ((artistName ==. B.val_ name) ||. (artistName ==. B.val_ nameL))
 
 -- getKeyName :: FilterBy -> String
 -- getKeyName (FilterById id') = "FilterById" ++ show id'

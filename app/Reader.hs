@@ -46,7 +46,7 @@ cacheWorker outChan cacheIORef = do
   CacheQueueValue primaryKey secondaryKeys foreignKey cacheValue <- Chan.readChan outChan
   cache <- readIORef cacheIORef
   case cacheValue of
-    SecondaryIdx _ -> do
+    ForeignIdx _ -> do
       -- TODO, update secondaryKeys list, don't replace it
       let newCache' = foldr (`HM.insert` PrimaryIdx foreignKey) cache (primaryKey : secondaryKeys)
           newCache = HM.insert foreignKey cacheValue newCache'

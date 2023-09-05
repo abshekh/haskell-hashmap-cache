@@ -46,7 +46,7 @@ app = do
   lift $ print artist
   lift $ putStrLn ""
 
-  lift $ threadDelay 1 -- microseconds
+  lift $ threadDelay 5 -- microseconds
 
   artist <- selectOneArtistById 1
   lift $ print artist

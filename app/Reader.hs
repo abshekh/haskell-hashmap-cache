@@ -35,37 +35,26 @@ getCacheChannel = do
   Env {..} <- ask
   lift $ readIORef cacheChannel
 
-startArtistCacheWorker :: Cache -> IO (CacheQueue Artist, ThreadId)
-startArtistCacheWorker cache = do
+startCacheWorker :: IORef (CacheMap a) -> IO (CacheQueue a, ThreadId)
+startCacheWorker cache = do
   chan@(_, outChan) <- Chan.newChan 1000
-  threadId <- forkIO $ forever $ artistCacheWorker outChan cache
+  threadId <- forkIO $ forever $ cacheWorker outChan cache
   return (chan, threadId)
 
-artistCacheWorker :: Chan.OutChan (CacheQueueValue Artist) -> Cache -> IO ()
-artistCacheWorker outChan cache = do
+cacheWorker :: Chan.OutChan (CacheQueueValue a) -> IORef (CacheMap a) -> IO ()
+cacheWorker outChan cacheIORef = do
   CacheQueueValue primaryKey secondaryKeys foreignKey cacheValue <- Chan.readChan outChan
-  artistCache <- readIORef (_artistCache cache)
+  cache <- readIORef cacheIORef
   case cacheValue of
     SecondaryIdx _ -> do
       -- TODO, update secondaryKeys list, don't replace it
-      let newArtistCache' = foldr (`HM.insert` PrimaryIdx foreignKey) artistCache (primaryKey : secondaryKeys)
-          newArtistCache = HM.insert foreignKey cacheValue newArtistCache'
-      writeIORef (_artistCache cache) newArtistCache
+      let newCache' = foldr (`HM.insert` PrimaryIdx foreignKey) cache (primaryKey : secondaryKeys)
+          newCache = HM.insert foreignKey cacheValue newCache'
+      writeIORef cacheIORef newCache
     _ -> pure ()
+
+startArtistCacheWorker :: Cache -> IO (CacheQueue Artist, ThreadId)
+startArtistCacheWorker cache = startCacheWorker (_artistCache cache)
 
 startAlbumCacheWorker :: Cache -> IO (CacheQueue Album, ThreadId)
-startAlbumCacheWorker cache = do
-  chan@(_, outChan) <- Chan.newChan 1000
-  threadId <- forkIO $ forever $ albumCacheWorker outChan cache
-  return (chan, threadId)
-
-albumCacheWorker :: Chan.OutChan (CacheQueueValue Album) -> Cache -> IO ()
-albumCacheWorker outChan cache = do
-  CacheQueueValue primaryKey secondaryKeys foreignKey cacheValue <- Chan.readChan outChan
-  albumCache <- readIORef (_albumCache cache)
-  case cacheValue of
-    SecondaryIdx _ -> do
-      let newAlbumCache' = foldr (`HM.insert` PrimaryIdx foreignKey) albumCache (primaryKey : secondaryKeys)
-          newAlbumCache = HM.insert foreignKey cacheValue newAlbumCache'
-      writeIORef (_albumCache cache) newAlbumCache
-    _ -> pure ()
+startAlbumCacheWorker cache = startCacheWorker (_albumCache cache)

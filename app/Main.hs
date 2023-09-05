@@ -1,31 +1,44 @@
 module Main where
 
-import Control.Concurrent (forkIO, newMVar, putMVar, readMVar, takeMVar, threadDelay)
-import Control.Monad (void)
-import Control.Monad.IO.Class (MonadIO (liftIO))
-import Control.Monad.Trans.Class (MonadTrans (lift))
-import Control.Monad.Trans.Reader (ReaderT (runReaderT), ask)
+import Control.Concurrent
+import Control.Monad
+import Control.Monad.IO.Class
+import Control.Monad.Trans.Class
+import Control.Monad.Trans.Reader
 import qualified Data.HashMap.Strict as HM
-import Database.SQLite.Simple (open)
+import Data.IORef (newIORef, readIORef)
+import Database.SQLite.Simple
 import qualified Reader as R
 import Storage.QueriesMiddleware.Album
 import Storage.QueriesMiddleware.Artist
 import Storage.Types.Artist
-import Storage.Types.Cache (Cache (ArtistCache))
+import Storage.Types.Cache
 
 main :: IO ()
 main = do
   conn <- open "resources/chinook.db"
-  cache <- newMVar mempty
+  cache <- getDefaultCache
+
+  (albumCacheChan, albumCacheThreadId) <- R.startAlbumCacheWorker cache
+  (artistCacheChan, artistCacheThreadId) <- R.startArtistCacheWorker cache
+
+  let cacheChannel' =
+        CacheChannel
+          { _albumCacheQueue = albumCacheChan,
+            _artistCacheQueue = artistCacheChan
+          }
+  cacheChannel <- newIORef cacheChannel'
+
   let runApp = runReaderT app :: R.Env -> IO ()
-      -- runAnotherApp = runReaderT anotherApp :: R.Env -> IO ()
       env =
         R.Env
           { sqlConn = conn,
-            cache = cache
+            cache = cache,
+            cacheChannel = cacheChannel
           }
-  -- runAnotherApp env
   runApp env
+  killThread albumCacheThreadId
+  killThread artistCacheThreadId
 
 app :: R.ReaderIO ()
 app = do
@@ -33,13 +46,15 @@ app = do
   lift $ print artist
   lift $ putStrLn ""
 
+  lift $ threadDelay 1 -- microseconds
+
   artist <- selectOneArtistById 1
   lift $ print artist
   lift $ putStrLn ""
 
-  -- artist <- selectOneArtistByName "AC/DC"
-  -- lift $ print artist
-  -- lift $ putStrLn ""
+  artist <- selectOneArtistByName "AC/DC"
+  lift $ print artist
+  lift $ putStrLn ""
 
   -- artist <- selectOneArtistByNameAndNameL "AC/DC"
   -- lift $ print artist
@@ -64,40 +79,12 @@ app = do
   -- lift $ print album
   -- lift $ putStrLn ""
 
-  cache <- showCache
-  lift $ putStrLn $ "cache: " ++ cache
+  showCache
 
-anotherApp :: R.ReaderIO ()
-anotherApp = do
-  env <- ask
-  void $ lift $ forkIO $ do
-    threadDelay (5 * 1000000) -- 5 sec
-    c1 <- liftIO $ runReaderT showCache env
-    putStrLn $ "thread1 cache: " ++ c1
-  void $ lift $ forkIO $ do
-    c2 <- liftIO $ runReaderT showCache env
-    putStrLn $ "thread2 old cache: " ++ c2
-    runReaderT mutateCache env
-    c3 <- liftIO $ runReaderT showCache env
-    putStrLn $ "thread2 new cache: " ++ c3
-
-  c4 <- showCache
-  lift $ putStrLn $ "main thread old cache: " ++ c4
-  lift $ threadDelay (5 * 1000000) -- 10 sec
-  c5 <- showCache
-  lift $ putStrLn $ "main thread new cache: " ++ c5
-
-showCache :: R.ReaderIO String
+showCache :: R.ReaderIO ()
 showCache = do
   cache <- R.getCache
-  c <- lift $ readMVar cache
-  return $ show c
-
-mutateCache :: R.ReaderIO ()
-mutateCache = do
-  cache <- R.getCache
-  _ <- lift $ takeMVar cache
-  let artist = Artist 0 "unknown" :: Artist
-      artistCache = ArtistCache artist
-  let c = HM.fromList [("Artist-0", artistCache)]
-  lift $ putMVar cache c
+  artistCache <- lift $ readIORef $ _artistCache cache
+  albumCache <- lift $ readIORef $ _albumCache cache
+  lift $ putStrLn $ "artistCache: " ++ show artistCache
+  lift $ putStrLn $ "albumCache: " ++ show albumCache

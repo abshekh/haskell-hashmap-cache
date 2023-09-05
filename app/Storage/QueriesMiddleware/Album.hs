@@ -7,13 +7,13 @@ import Storage.Queries.Album
 import Storage.Types.Album
 
 selectOneAlbumById :: Int32 -> R.ReaderIO (Maybe Album)
-selectOneAlbumById id' = selectOneMaybeAlbumCache (FilterByAlbumId id')
+selectOneAlbumById id' = selectOneMaybeAlbum (FilterByAlbumId id')
 
 selectOneAlbumByTitle :: Text -> R.ReaderIO (Maybe Album)
-selectOneAlbumByTitle title = selectOneMaybeAlbumCache (FilterByAlbumTitle title)
+selectOneAlbumByTitle title = selectOneMaybeAlbum (FilterByAlbumTitle title)
 
 selectManyAlbumByArtist :: Int32 -> R.ReaderIO [Album]
-selectManyAlbumByArtist id' = selectManyAlbumCache (FilterByArtistId id')
+selectManyAlbumByArtist id' = selectManyAlbum (FilterByArtistId id')
 
-selectAllAlbum :: R.ReaderIO [Album]
-selectAllAlbum = selectAllAlbumCache
+-- selectAllAlbum :: R.ReaderIO [Album]
+-- selectAllAlbum = selectAllAlbum

@@ -19,14 +19,14 @@ import Storage.Types.Artist
 -- import Storage.Types.PlaylistTrack
 -- import Storage.Types.Track
 
-data CacheValue a = PrimaryIdx Text | SecondaryIdx [Text] | ForeignIdx ([Text], a) deriving (Show)
+data CacheValue a = PrimaryIdx Text | PrimaryIdxs [Text] | ForeignIdx ([Text], a) deriving (Show)
 
 type CacheMap a = HashMap Text (CacheValue a)
 
 data CacheQueueValue a = CacheQueueValue {
   _primaryKey :: Text,
   _secondaryKeys :: [Text],
-  _foriegnKey :: Text,
+  _foriegnKeys :: [Text],
   _cacheValue :: CacheValue a
 }
 type CacheQueue a = (Chan.InChan (CacheQueueValue a), Chan.OutChan (CacheQueueValue a))

@@ -35,18 +35,18 @@ getCacheChannel = do
   Env {..} <- ask
   lift $ readIORef cacheChannel
 
-startCacheWorker :: IORef (CacheMap a) -> IO (CacheQueue a, ThreadId)
-startCacheWorker cache = do
-  chan@(_, outChan) <- Chan.newChan 1000
+startCacheWorker :: IORef (CacheMap a) -> Int  -> IO (CacheQueue a, ThreadId)
+startCacheWorker cache maxQueueSize = do
+  chan@(_, outChan) <- Chan.newChan maxQueueSize
   threadId <- forkIO $ forever $ cacheWorker outChan cache
   return (chan, threadId)
 
 cacheWorker :: Chan.OutChan (CacheQueueValue a) -> IORef (CacheMap a) -> IO ()
 cacheWorker outChan cacheIORef = do
-  CacheQueueValue primaryKey secondaryKeys foreignKey cacheValue <- Chan.readChan outChan
+  CacheQueueValue primaryKey secondaryKeys foreignKeys cacheValue <- Chan.readChan outChan
   cache <- readIORef cacheIORef
-  case cacheValue of
-    ForeignIdx _ -> do
+  case (cacheValue, foreignKeys) of
+    (ForeignIdx _, [foreignKey]) -> do
       -- TODO, update secondaryKeys list, don't replace it
       let newCache' = foldr (`HM.insert` PrimaryIdx foreignKey) cache (primaryKey : secondaryKeys)
           newCache = HM.insert foreignKey cacheValue newCache'
@@ -54,7 +54,7 @@ cacheWorker outChan cacheIORef = do
     _ -> pure ()
 
 startArtistCacheWorker :: Cache -> IO (CacheQueue Artist, ThreadId)
-startArtistCacheWorker cache = startCacheWorker (_artistCache cache)
+startArtistCacheWorker cache = startCacheWorker (_artistCache cache) 1000
 
 startAlbumCacheWorker :: Cache -> IO (CacheQueue Album, ThreadId)
-startAlbumCacheWorker cache = startCacheWorker (_albumCache cache)
+startAlbumCacheWorker cache = startCacheWorker (_albumCache cache) 1000

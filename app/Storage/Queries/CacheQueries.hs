@@ -1,8 +1,7 @@
 module Storage.Queries.CacheQueries where
 
-import Control.Concurrent (modifyMVar_, readMVar)
 import qualified Control.Concurrent.Chan.Unagi.Bounded as Chan
-import Control.Monad (forM_, void)
+import Control.Monad (void)
 import Control.Monad.Trans.Class (MonadTrans (lift))
 import qualified Data.HashMap.Strict as HM
 import Data.IORef (IORef, readIORef)
@@ -34,7 +33,7 @@ insertOne primaryKey secondaryKeys foreignKey value (inChan, _) = do
         CacheQueueValue
           { _primaryKey = pKey,
             _secondaryKeys = sKeys,
-            _foriegnKey = fKey,
+            _foriegnKeys = [fKey],
             _cacheValue = ForeignIdx (pKey : sKeys, value)
           }
   void $ lift $ Chan.tryWriteChan inChan cacheQueueValue

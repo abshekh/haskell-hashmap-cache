@@ -5,10 +5,10 @@ import qualified Control.Concurrent.Chan.Unagi.Bounded as Chan
 import Control.Monad (forM_, void)
 import Control.Monad.Trans.Class (MonadTrans (lift))
 import qualified Data.HashMap.Strict as HM
+import Data.IORef (IORef, readIORef)
 import Data.Text hiding (foldr, map, null)
 import Reader as R
 import Storage.Types.Cache
-import Data.IORef (IORef, readIORef)
 
 selectOneMaybe :: String -> IORef (HM.HashMap Text (CacheValue a)) -> ReaderIO (Maybe a)
 selectOneMaybe keyName cacheIORef = do
@@ -21,17 +21,21 @@ selectOneMaybe keyName cacheIORef = do
         PrimaryIdx s -> do
           secIdx <- HM.lookup s cache
           case secIdx of
-            SecondaryIdx a -> return a
+            ForeignIdx (_, a) -> return a
             _ -> Nothing
         _ -> Nothing
 
 insertOne :: String -> [String] -> String -> a -> CacheQueue a -> R.ReaderIO ()
-insertOne primaryKey secondaryKeys fkey value (inChan, _) = do
-  let cacheQueueValue = CacheQueueValue {
-            _primaryKey = pack primaryKey,
-            _secondaryKeys = pack <$> secondaryKeys,
-            _foriegnKey = pack fkey,
-            _cacheValue = SecondaryIdx value
+insertOne primaryKey secondaryKeys foreignKey value (inChan, _) = do
+  let pKey = pack primaryKey
+      sKeys = pack <$> secondaryKeys
+      fKey = pack foreignKey
+      cacheQueueValue =
+        CacheQueueValue
+          { _primaryKey = pKey,
+            _secondaryKeys = sKeys,
+            _foriegnKey = fKey,
+            _cacheValue = ForeignIdx (pKey : sKeys, value)
           }
   void $ lift $ Chan.tryWriteChan inChan cacheQueueValue
 

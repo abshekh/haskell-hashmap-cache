@@ -19,7 +19,7 @@ import Storage.Types.Artist
 -- import Storage.Types.PlaylistTrack
 -- import Storage.Types.Track
 
-data CacheValue a = PrimaryIdx Text | PrimaryIdxs [Text] | SecondaryIdx a deriving (Show)
+data CacheValue a = PrimaryIdx Text | SecondaryIdx [Text] | ForeignIdx ([Text], a) deriving (Show)
 
 type CacheMap a = HashMap Text (CacheValue a)
 

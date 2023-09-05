@@ -2,11 +2,11 @@ module Reader where
 
 import Control.Concurrent (ThreadId, forkIO)
 import qualified Control.Concurrent.Chan.Unagi.Bounded as Chan
-import Control.Monad (forever, void)
+import Control.Monad (forever)
 import Control.Monad.Trans.Class (MonadTrans (lift))
 import Control.Monad.Trans.Reader
 import qualified Data.HashMap.Strict as HM
-import Data.IORef (readIORef, writeIORef, IORef)
+import Data.IORef (IORef, readIORef, writeIORef)
 import Database.SQLite.Simple (Connection)
 import Storage.Types.Album (Album)
 import Storage.Types.Artist (Artist)
@@ -47,7 +47,8 @@ artistCacheWorker outChan cache = do
   artistCache <- readIORef (_artistCache cache)
   case cacheValue of
     SecondaryIdx _ -> do
-      let newArtistCache' = foldr (`HM.insert` PrimaryIdx foreignKey) artistCache (primaryKey:secondaryKeys)
+      -- TODO, update secondaryKeys list, don't replace it
+      let newArtistCache' = foldr (`HM.insert` PrimaryIdx foreignKey) artistCache (primaryKey : secondaryKeys)
           newArtistCache = HM.insert foreignKey cacheValue newArtistCache'
       writeIORef (_artistCache cache) newArtistCache
     _ -> pure ()
@@ -64,7 +65,7 @@ albumCacheWorker outChan cache = do
   albumCache <- readIORef (_albumCache cache)
   case cacheValue of
     SecondaryIdx _ -> do
-      let newAlbumCache' = foldr (`HM.insert` PrimaryIdx foreignKey) albumCache (primaryKey:secondaryKeys)
+      let newAlbumCache' = foldr (`HM.insert` PrimaryIdx foreignKey) albumCache (primaryKey : secondaryKeys)
           newAlbumCache = HM.insert foreignKey cacheValue newAlbumCache'
       writeIORef (_albumCache cache) newAlbumCache
     _ -> pure ()

@@ -25,11 +25,15 @@ extra-source-files: CHANGELOG.md
 
 executable in-memory-hashmap
     main-is:                Main.hs
-    other-modules:          Storage.Types.Address
+    other-modules:          Storage.Cache.CacheWorker
+                 ,          Storage.FilterBy.Album
+                 ,          Storage.FilterBy.Artist
+                 ,          Storage.Types.Address
                  ,          Storage.Types.Album
                  ,          Storage.Types.Artist
                  ,          Storage.Types.Customer
                  ,          Storage.Types.Cache
+                 ,          Storage.Types.CacheChannel
                  ,          Storage.Types.CacheClass
                  ,          Storage.Types.CacheTH
                  ,          Storage.Types.DB

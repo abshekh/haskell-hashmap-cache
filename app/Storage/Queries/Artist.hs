@@ -1,3 +1,5 @@
+{-# LANGUAGE RankNTypes, ScopedTypeVariables, TypeApplications #-}
+
 module Storage.Queries.Artist where
 
 import Control.Monad.Extra
@@ -12,28 +14,15 @@ import qualified Reader as R
 import qualified Storage.Queries.CacheQueries as CQ
 import qualified Storage.Queries.DBQueries as Q
 import Storage.Types.Artist
+import Storage.FilterBy.Artist
 import Storage.Types.Cache
 import Storage.Types.CacheClass
-import Storage.Types.CacheTH
+import Storage.Types.CacheChannel
 import qualified Storage.Types.DB as DB
 import Control.Monad.Trans.Class (MonadTrans(lift))
 
 getDbTable :: B.DatabaseEntity be DB.ChinookDb (B.TableEntity ArtistT)
 getDbTable = DB._artist DB.chinookDb
-
-getDbTableName :: String
-getDbTableName = "Artist"
-
-data FilterByOne
-  = FilterByName {artistName :: Text}
-  | FilterById {artistId :: Int32}
-  deriving
-    ( -- | FilterByArtistIdAndArtistName {artistId :: Int32, artistName :: Text}
-      -- | FilterByArtistNameOrArtistNameL {artistName :: Text, artistNameL :: Text}
-      Show
-    )
-
-$(deriveCacheClass ''Artist ''FilterByOne)
 
 selectOneMaybeArtist :: FilterByOne -> R.ReaderIO (Maybe Artist)
 selectOneMaybeArtist filterBy = do
@@ -43,7 +32,7 @@ selectOneMaybeArtist filterBy = do
 
 selectOneMaybeArtistCache :: FilterByOne -> R.ReaderIO (Maybe Artist)
 selectOneMaybeArtistCache filterBy = do
-  let keyName = getKey (Proxy :: Proxy Artist) filterBy
+  let keyName = getKey (Proxy @Artist) filterBy
   artist <- selectOneMaybeArtistCacheHelper keyName
   case artist of
     Just _ -> do
@@ -54,7 +43,7 @@ selectOneMaybeArtistCache filterBy = do
       cacheChannel <- R.getCacheChannel
       artist' <- selectOneMaybeArtist filterBy
       let artistCacheChannel = _artistCacheQueue cacheChannel
-      whenJust artist' $ \a -> CQ.insertOne keyName (getAllKeys a (Proxy :: Proxy FilterByOne)) (show $ B.primaryKey a) a artistCacheChannel
+      whenJust artist' $ \a -> CQ.insertOne keyName a (Proxy @FilterByOne) artistCacheChannel
       return artist'
   where
     selectOneMaybeArtistCacheHelper keyName = do

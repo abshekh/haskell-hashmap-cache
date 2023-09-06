@@ -23,22 +23,16 @@ data CacheValue a = PrimaryIdx Text | PrimaryIdxs [Text] | ForeignIdx ([Text], a
 
 type CacheMap a = HashMap Text (CacheValue a)
 
-data CacheQueueValue a = CacheQueueValue {
-  _primaryKey :: Text,
-  _secondaryKeys :: [Text],
-  _foriegnKeys :: [Text],
-  _cacheValue :: CacheValue a
-}
-type CacheQueue a = (Chan.InChan (CacheQueueValue a), Chan.OutChan (CacheQueueValue a))
+data CacheQueueValueData a = CacheQueueValueData
+  { _primaryKey :: Text,
+    _secondaryKeys :: [Text],
+    _foriegnKeys :: Text,
+    _cacheValue :: CacheValue a
+  }
 
 data Cache = Cache
   { _albumCache :: IORef (CacheMap Album),
     _artistCache :: IORef (CacheMap Artist)
-  }
-
-data CacheChannel = CacheChannel
-  { _albumCacheQueue :: CacheQueue Album,
-    _artistCacheQueue :: CacheQueue Artist
   }
 
 getDefaultCache :: IO Cache
@@ -50,4 +44,3 @@ getDefaultCache = do
       { _albumCache = album,
         _artistCache = artist
       }
-

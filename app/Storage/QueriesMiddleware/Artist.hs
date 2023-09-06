@@ -5,6 +5,7 @@ import Data.Text (Text, toLower)
 import qualified Reader as R
 import Storage.Queries.Artist
 import Storage.Types.Artist
+import Storage.FilterBy.Artist
 
 selectOneArtistById :: Int32 -> R.ReaderIO (Maybe Artist)
 selectOneArtistById id' = selectOneMaybeArtistCache (FilterById id')

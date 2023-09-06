@@ -10,6 +10,7 @@ import qualified Reader as R
 import qualified Storage.Queries.CacheQueries as CQ
 import qualified Storage.Queries.DBQueries as Q
 import Storage.Types.Album
+import Storage.FilterBy.Album
 import Storage.Types.Cache
 import Storage.Types.CacheClass
 import Storage.Types.CacheTH
@@ -19,24 +20,8 @@ import Control.Monad.Trans.Class (MonadTrans(lift))
 getDbTable :: B.DatabaseEntity be DB.ChinookDb (B.TableEntity AlbumT)
 getDbTable = DB._album DB.chinookDb
 
-getDbTableName :: String
-getDbTableName = "Album"
-
-data FilterBy
-  = FilterByOne FilterByOneData
-  | FilterByMany FilterByManyData
-
-data FilterByOneData
-  = FilterByAlbumId {albumId :: Int32}
-  | FilterByAlbumTitle {albumTitle :: Text}
-  deriving (Show)
-
-newtype FilterByManyData = FilterByArtistId {artistId :: Int32}
-  deriving (Show)
-
-$(deriveCacheClass ''Album ''FilterByOneData)
-
-$(deriveCacheClass ''Album ''FilterByManyData)
+-- getDbTableName :: String
+-- getDbTableName = "Album"
 
 selectOneMaybeAlbum :: FilterByOneData -> R.ReaderIO (Maybe Album)
 selectOneMaybeAlbum filterBy = do

@@ -8,6 +8,8 @@ import Data.IORef (IORef, readIORef)
 import Data.Text hiding (foldr, map, null)
 import Reader as R
 import Storage.Types.Cache
+import Data.Data (Proxy)
+import Storage.Types.CacheChannel (CacheQueue)
 
 selectOneMaybe :: String -> IORef (HM.HashMap Text (CacheValue a)) -> ReaderIO (Maybe a)
 selectOneMaybe keyName cacheIORef = do
@@ -24,19 +26,14 @@ selectOneMaybe keyName cacheIORef = do
             _ -> Nothing
         _ -> Nothing
 
-insertOne :: String -> [String] -> String -> a -> CacheQueue a -> R.ReaderIO ()
-insertOne primaryKey secondaryKeys foreignKey value (inChan, _) = do
-  let pKey = pack primaryKey
-      sKeys = pack <$> secondaryKeys
-      fKey = pack foreignKey
-      cacheQueueValue =
-        CacheQueueValue
-          { _primaryKey = pKey,
-            _secondaryKeys = sKeys,
-            _foriegnKeys = [fKey],
-            _cacheValue = ForeignIdx (pKey : sKeys, value)
-          }
-  void $ lift $ Chan.tryWriteChan inChan cacheQueueValue
+insert :: String -> [a] -> Proxy f -> CacheQueue a f -> R.ReaderIO ()
+insert key val f (inChan, _) = void $ lift $ Chan.tryWriteChan inChan (key, val, f)
+
+insertOne :: String -> a -> Proxy f -> CacheQueue a f -> R.ReaderIO ()
+insertOne key val = insert key [val]
+
+insertMany :: String -> [a] -> Proxy f -> CacheQueue a f -> R.ReaderIO ()
+insertMany = insert
 
 -- selectOneMaybe :: String -> String -> R.ReaderIO (Maybe Cache)
 -- selectOneMaybe prefix key = do

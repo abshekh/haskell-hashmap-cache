@@ -13,14 +13,16 @@ import Storage.QueriesMiddleware.Album
 import Storage.QueriesMiddleware.Artist
 import Storage.Types.Artist
 import Storage.Types.Cache
+import Storage.Types.CacheChannel
+import Storage.Cache.CacheWorker
 
 main :: IO ()
 main = do
   conn <- open "resources/chinook.db"
   cache <- getDefaultCache
 
-  (albumCacheChan, albumCacheThreadId) <- R.startAlbumCacheWorker cache
-  (artistCacheChan, artistCacheThreadId) <- R.startArtistCacheWorker cache
+  (albumCacheChan, albumCacheThreadId) <- startAlbumCacheWorker cache
+  (artistCacheChan, artistCacheThreadId) <- startArtistCacheWorker cache
 
   let cacheChannel' =
         CacheChannel

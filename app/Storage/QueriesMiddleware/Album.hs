@@ -5,6 +5,7 @@ import Data.Text (Text)
 import qualified Reader as R
 import Storage.Queries.Album
 import Storage.Types.Album
+import Storage.FilterBy.Album
 
 selectOneAlbumById :: Int32 -> R.ReaderIO (Maybe Album)
 selectOneAlbumById id' = selectOneMaybeAlbum (FilterByAlbumId id')

@@ -1,16 +1,11 @@
 module Reader where
 
-import Control.Concurrent (ThreadId, forkIO)
-import qualified Control.Concurrent.Chan.Unagi.Bounded as Chan
-import Control.Monad (forever)
 import Control.Monad.Trans.Class (MonadTrans (lift))
 import Control.Monad.Trans.Reader
-import qualified Data.HashMap.Strict as HM
-import Data.IORef (IORef, readIORef, writeIORef)
+import Data.IORef (IORef, readIORef)
 import Database.SQLite.Simple (Connection)
-import Storage.Types.Album (Album)
-import Storage.Types.Artist (Artist)
 import Storage.Types.Cache
+import Storage.Types.CacheChannel
 
 type ReaderIO = ReaderT Env IO
 
@@ -34,27 +29,3 @@ getCacheChannel :: ReaderIO CacheChannel
 getCacheChannel = do
   Env {..} <- ask
   lift $ readIORef cacheChannel
-
-startCacheWorker :: IORef (CacheMap a) -> Int  -> IO (CacheQueue a, ThreadId)
-startCacheWorker cache maxQueueSize = do
-  chan@(_, outChan) <- Chan.newChan maxQueueSize
-  threadId <- forkIO $ forever $ cacheWorker outChan cache
-  return (chan, threadId)
-
-cacheWorker :: Chan.OutChan (CacheQueueValue a) -> IORef (CacheMap a) -> IO ()
-cacheWorker outChan cacheIORef = do
-  CacheQueueValue primaryKey secondaryKeys foreignKeys cacheValue <- Chan.readChan outChan
-  cache <- readIORef cacheIORef
-  case (cacheValue, foreignKeys) of
-    (ForeignIdx _, [foreignKey]) -> do
-      -- TODO, update secondaryKeys list, don't replace it
-      let newCache' = foldr (`HM.insert` PrimaryIdx foreignKey) cache (primaryKey : secondaryKeys)
-          newCache = HM.insert foreignKey cacheValue newCache'
-      writeIORef cacheIORef newCache
-    _ -> pure ()
-
-startArtistCacheWorker :: Cache -> IO (CacheQueue Artist, ThreadId)
-startArtistCacheWorker cache = startCacheWorker (_artistCache cache) 1000
-
-startAlbumCacheWorker :: Cache -> IO (CacheQueue Album, ThreadId)
-startAlbumCacheWorker cache = startCacheWorker (_albumCache cache) 1000

@@ -48,9 +48,19 @@ app = do
   lift $ print artist
   lift $ putStrLn ""
 
+  artist <- selectOneArtistById 1
+  lift $ print artist
+  lift $ putStrLn ""
+
+  void selectAllArtist
+
   lift $ threadDelay 5 -- microseconds
 
   artist <- selectOneArtistById 1
+  lift $ print artist
+  lift $ putStrLn ""
+
+  artist <- selectOneArtistById 2
   lift $ print artist
   lift $ putStrLn ""
 
@@ -81,7 +91,7 @@ app = do
   -- lift $ print album
   -- lift $ putStrLn ""
 
-  showCache
+  -- showCache
 
 showCache :: R.ReaderIO ()
 showCache = do

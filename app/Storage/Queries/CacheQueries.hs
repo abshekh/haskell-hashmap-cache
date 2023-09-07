@@ -3,12 +3,12 @@ module Storage.Queries.CacheQueries where
 import qualified Control.Concurrent.Chan.Unagi.Bounded as Chan
 import Control.Monad (void)
 import Control.Monad.Trans.Class (MonadTrans (lift))
+import Data.Data (Proxy)
 import qualified Data.HashMap.Strict as HM
 import Data.IORef (IORef, readIORef)
 import Data.Text hiding (foldr, map, null)
 import Reader as R
 import Storage.Types.Cache
-import Data.Data (Proxy)
 import Storage.Types.CacheChannel (CacheQueue)
 
 selectOneMaybe :: String -> IORef (HM.HashMap Text (CacheValue a)) -> ReaderIO (Maybe a)
@@ -25,6 +25,24 @@ selectOneMaybe keyName cacheIORef = do
             ForeignIdx (_, a) -> return a
             _ -> Nothing
         _ -> Nothing
+
+selectMany :: String -> IORef (HM.HashMap Text (CacheValue a)) -> ReaderIO [a]
+selectMany keyName cacheIORef = do
+  cache <- lift $ readIORef cacheIORef
+  return $ selectManyHelper cache
+  where
+    selectManyHelper cache = do
+      case HM.lookup (pack keyName) cache of
+        Just (PrimaryIdxs fkeys) -> do
+          foldr
+            ( \curr acc ->
+                case HM.lookup curr cache of
+                  Just (ForeignIdx (_, v)) -> v : acc
+                  _ -> acc
+            )
+            []
+            fkeys
+        _ -> []
 
 insert :: String -> [a] -> Proxy f -> CacheQueue a f -> R.ReaderIO ()
 insert key val f (inChan, _) = void $ lift $ Chan.tryWriteChan inChan (key, val, f)

@@ -58,4 +58,24 @@ cacheWorker outChan cacheIORef = do
           -- TODO: don't to replace allKeys in ForeignIdx, make it a set and append to it
           newCache = HM.insert foreignKey (ForeignIdx (allKeys, value)) newCache'
       writeIORef cacheIORef newCache
-    _ -> return ()
+    _ -> do
+      let (newCache', foreignKeys) =
+            foldr
+              ( \v (c, fKeys) -> do
+                  let (newC, foreignKey) = insertManyHelper c v f
+                  (newC, foreignKey : fKeys)
+              )
+              (cache, [])
+              values
+          newCache = HM.insert (T.pack key) (PrimaryIdxs foreignKeys) newCache'
+      writeIORef cacheIORef newCache
+  where
+    getAllKeysHelper value f = T.pack <$> getAllKeys value f
+    getForeignKeyHelper value = T.pack . show $ B.primaryKey value
+    insertManyHelper cache value f = do
+      let allKeys = getAllKeysHelper value f
+          foreignKey = getForeignKeyHelper value
+          newCache' = foldr (`HM.insert` PrimaryIdx foreignKey) cache allKeys
+          -- TODO: don't to replace allKeys in ForeignIdx, make it a set and append to it
+          newCache = HM.insert foreignKey (ForeignIdx (allKeys, value)) newCache'
+      (newCache, foreignKey)

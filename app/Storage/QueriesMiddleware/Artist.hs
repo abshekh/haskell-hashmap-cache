@@ -1,7 +1,7 @@
 module Storage.QueriesMiddleware.Artist where
 
 import Data.Int (Int32)
-import Data.Text (Text, toLower)
+import Data.Text (Text)
 import qualified Reader as R
 import Storage.Queries.Artist
 import Storage.Types.Artist
@@ -18,3 +18,6 @@ selectOneArtistByName name = selectOneMaybeArtistCache (FilterByName name)
 
 -- selectOneArtistByNameAndNameL :: Text -> R.ReaderIO (Maybe Artist)
 -- selectOneArtistByNameAndNameL name = selectOneMaybeArtistCache (FilterByArtistNameOrArtistNameL name (toLower name))
+
+selectAllArtist :: R.ReaderIO [Artist]
+selectAllArtist = selectAllArtistCache

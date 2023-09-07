@@ -30,6 +30,9 @@ selectOneMaybeArtist filterBy = do
       dbTable = getDbTable
   Q.selectOneMaybe dbTable predicate
 
+selectAllArtist :: R.ReaderIO [Artist]
+selectAllArtist = Q.selectAll getDbTable
+
 selectOneMaybeArtistCache :: FilterByOne -> R.ReaderIO (Maybe Artist)
 selectOneMaybeArtistCache filterBy = do
   let keyName = getKey (Proxy @Artist) filterBy
@@ -50,6 +53,28 @@ selectOneMaybeArtistCache filterBy = do
       cache <- R.getCache
       let artistCache = _artistCache cache
       CQ.selectOneMaybe keyName artistCache
+
+selectAllArtistCache :: R.ReaderIO [Artist]
+selectAllArtistCache = do
+  let keyName = "Table"
+  artist <- selectAllArtistCacheHelper keyName
+  case artist of
+    [] -> do
+      lift $ putStrLn "Not found all artists in cache querying DB"
+      cacheChannel <- R.getCacheChannel
+      artist' <- selectAllArtist
+      let artistCacheChannel = _artistCacheQueue cacheChannel
+      CQ.insertMany keyName artist' (Proxy @FilterByOne) artistCacheChannel
+      return artist'
+    _ -> do
+      lift $ putStrLn "Found all artists in cache"
+      return artist
+  where
+    selectAllArtistCacheHelper keyName = do
+      cache <- R.getCache
+      let artistCache = _artistCache cache
+      CQ.selectMany keyName artistCache
+
 
 -- selectOneMaybeArtistCache :: FilterByOne -> R.ReaderIO (Maybe Artist)
 -- selectOneMaybeArtistCache =

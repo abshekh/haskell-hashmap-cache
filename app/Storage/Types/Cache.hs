@@ -20,6 +20,11 @@ import Storage.Types.Artist
 -- import Storage.Types.Track
 
 data CacheValue a = PrimaryIdx Text | PrimaryIdxs [Text] | ForeignIdx ([Text], a) deriving (Show)
+-- data CacheValue a
+--   = ReferenceId Text
+--   | ReferenceIds [Text]
+--   | Value ([Text], a)
+--   deriving (Show)
 
 type CacheMap a = HashMap Text (CacheValue a)
 

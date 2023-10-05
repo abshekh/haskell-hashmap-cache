@@ -1,11 +1,13 @@
+{-# LANGUAGE RecordWildCards #-}
+
 module Reader where
 
 import Control.Monad.Trans.Class (MonadTrans (lift))
 import Control.Monad.Trans.Reader
 import Data.IORef (IORef, readIORef)
 import Database.SQLite.Simple (Connection)
-import Storage.Types.Cache
-import Storage.Types.CacheChannel
+import Storage.Cache.Cache
+import Storage.Cache.CacheChannel
 
 type ReaderIO = ReaderT Env IO
 

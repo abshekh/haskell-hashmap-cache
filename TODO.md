@@ -1,0 +1,1 @@
+- move `maxQueueSize` as config variable

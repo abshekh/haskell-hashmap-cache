@@ -1,5 +1,7 @@
+{-# LANGUAGE TypeApplications #-}
 module Main where
 
+import Data.Data (Proxy (Proxy))
 import Control.Concurrent
 import Control.Monad
 import Control.Monad.IO.Class
@@ -12,23 +14,33 @@ import qualified Reader as R
 import Storage.QueriesMiddleware.Album
 import Storage.QueriesMiddleware.Artist
 import Storage.Types.Artist
-import Storage.Types.Cache
-import Storage.Types.CacheChannel
+import Storage.Cache.Cache
+import Storage.Cache.CacheTH
+import Storage.Cache.CacheChannel
 import Storage.Cache.CacheWorker
 
 main :: IO ()
 main = do
   conn <- open "resources/chinook.db"
-  cache <- getDefaultCache
+  cache <- getDefaultCache (Proxy @Cache) (Proxy @CacheEnabled) (Proxy @CacheStrategy) (Proxy @CacheChannel)
+  let cacheEnabled = CacheEnabled {
+    _artistCache = True,
+    _albumCache = False
+  }
+  let cacheStrategy = CacheStrategy {
+    _artistCache = DefaultCache,
+    _albumCache = LRUCache
+  }
+  cacheChannel' <- startCacheWorkers cache cacheEnabled cacheStrategy (Proxy @CacheChannel)
 
-  (albumCacheChan, albumCacheThreadId) <- startAlbumCacheWorker cache
-  (artistCacheChan, artistCacheThreadId) <- startArtistCacheWorker cache
-
-  let cacheChannel' =
-        CacheChannel
-          { _albumCacheQueue = albumCacheChan,
-            _artistCacheQueue = artistCacheChan
-          }
+  -- (albumCacheChan, albumCacheThreadId) <- startAlbumCacheWorker cache
+  -- (artistCacheChan, artistCacheThreadId) <- startArtistCacheWorker cache
+  --
+  -- let cacheChannel' =
+  --       CacheChannel
+  --         { _albumCache = albumCacheChan,
+  --           _artistCache = artistCacheChan
+  --         }
   cacheChannel <- newIORef cacheChannel'
 
   let runApp = runReaderT app :: R.Env -> IO ()
@@ -39,8 +51,8 @@ main = do
             cacheChannel = cacheChannel
           }
   runApp env
-  killThread albumCacheThreadId
-  killThread artistCacheThreadId
+  -- killThread albumCacheThreadId
+  -- killThread artistCacheThreadId
 
 app :: R.ReaderIO ()
 app = do
@@ -68,35 +80,13 @@ app = do
   lift $ print artist
   lift $ putStrLn ""
 
-  -- artist <- selectOneArtistByNameAndNameL "AC/DC"
-  -- lift $ print artist
-  -- lift $ putStrLn ""
-  --
-  -- artist <- selectOneArtistByNameAndNameL "AC/DC"
-  -- lift $ print artist
-  -- lift $ putStrLn ""
-
-  -- album <- selectManyAlbumByArtist 1
-  -- lift $ print album
-  -- lift $ putStrLn ""
-  --
-  -- album <- selectManyAlbumByArtist 1
-  -- lift $ print album
-  -- lift $ putStrLn ""
-  --
-  -- albums <- selectAllAlbum
-  -- lift $ putStrLn ""
-
-  -- album <- selectOneAlbumById 1
-  -- lift $ print album
-  -- lift $ putStrLn ""
-
+  void selectAllArtist
   -- showCache
 
-showCache :: R.ReaderIO ()
-showCache = do
-  cache <- R.getCache
-  artistCache <- lift $ readIORef $ _artistCache cache
-  albumCache <- lift $ readIORef $ _albumCache cache
-  lift $ putStrLn $ "artistCache: " ++ show artistCache
-  lift $ putStrLn $ "albumCache: " ++ show albumCache
+-- showCache :: R.ReaderIO ()
+-- showCache = do
+--   cache <- R.getCache
+--   artistCache <- lift $ readIORef $ _artistCache cache
+--   albumCache <- lift $ readIORef $ _albumCache cache
+--   lift $ putStrLn $ "artistCache: " ++ show artistCache
+--   lift $ putStrLn $ "albumCache: " ++ show albumCache

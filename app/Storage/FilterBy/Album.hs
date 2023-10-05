@@ -3,7 +3,7 @@ module Storage.FilterBy.Album where
 import Data.Text (Text)
 import Data.Int (Int32)
 import Storage.Types.Album
-import Storage.Types.CacheTH
+import Storage.Cache.CacheTH
 
 data FilterBy
   = FilterByOne FilterByOneData

@@ -1,23 +1,24 @@
 {-# LANGUAGE RankNTypes, ScopedTypeVariables, TypeApplications #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Storage.Queries.Artist where
 
+import Control.Lens
 import Control.Monad.Extra
 import Data.Data (Proxy (Proxy))
-import Data.Int (Int32)
+import Data.Int
 import Data.Maybe
-import Data.Text (Text)
-import Database.Beam ((&&.), (==.), (||.))
+import Data.Text
+import Database.Beam ((==.))
 import qualified Database.Beam as B
 import Database.Beam.Sqlite (Sqlite)
 import qualified Reader as R
-import qualified Storage.Queries.CacheQueries as CQ
 import qualified Storage.Queries.DBQueries as Q
 import Storage.Types.Artist
 import Storage.FilterBy.Artist
-import Storage.Types.Cache
-import Storage.Types.CacheClass
-import Storage.Types.CacheChannel
+import qualified Storage.Cache.Queries as CQ
+import Storage.Cache.Cache as C
+import Storage.Cache.CacheChannel as CH
 import qualified Storage.Types.DB as DB
 import Control.Monad.Trans.Class (MonadTrans(lift))
 
@@ -38,58 +39,45 @@ selectOneMaybeArtistCache filterBy = do
   let keyName = getKey (Proxy @Artist) filterBy
   artist <- selectOneMaybeArtistCacheHelper keyName
   case artist of
-    Just _ -> do
+    Right a -> do
       lift $ putStrLn $ "Found in cache: " ++ show filterBy
-      return artist
-    Nothing -> do
+      return a
+    Left _ -> do
       lift $ putStrLn $ "Not found in cache querying DB: " ++ show filterBy
       cacheChannel <- R.getCacheChannel
       artist' <- selectOneMaybeArtist filterBy
-      let artistCacheChannel = _artistCacheQueue cacheChannel
-      whenJust artist' $ \a -> CQ.insertOne keyName a (Proxy @FilterByOne) artistCacheChannel
+      let artistCacheChannel = cacheChannel ^. CH.artistCache
+      let artist'' = case artist' of
+                              Nothing -> []
+                              Just a -> [a]
+      CQ.insert keyName artist'' (Proxy @FilterByOne) 5 artistCacheChannel
       return artist'
   where
     selectOneMaybeArtistCacheHelper keyName = do
       cache <- R.getCache
-      let artistCache = _artistCache cache
-      CQ.selectOneMaybe keyName artistCache
+      let artistCache' = cache ^. C.artistCache
+      CQ.selectOneMaybe keyName artistCache'
 
 selectAllArtistCache :: R.ReaderIO [Artist]
 selectAllArtistCache = do
   let keyName = "Table"
   artist <- selectAllArtistCacheHelper keyName
   case artist of
-    [] -> do
+    Left _ -> do
       lift $ putStrLn "Not found all artists in cache querying DB"
       cacheChannel <- R.getCacheChannel
       artist' <- selectAllArtist
-      let artistCacheChannel = _artistCacheQueue cacheChannel
-      CQ.insertMany keyName artist' (Proxy @FilterByOne) artistCacheChannel
+      let artistCacheChannel = cacheChannel ^. CH.artistCache
+      CQ.insert keyName artist' (Proxy @FilterByOne) 5 artistCacheChannel
       return artist'
-    _ -> do
+    Right a -> do
       lift $ putStrLn "Found all artists in cache"
-      return artist
+      return a
   where
     selectAllArtistCacheHelper keyName = do
       cache <- R.getCache
-      let artistCache = _artistCache cache
-      CQ.selectMany keyName artistCache
-
-
--- selectOneMaybeArtistCache :: FilterByOne -> R.ReaderIO (Maybe Artist)
--- selectOneMaybeArtistCache =
---   CQ.selectOrInsertInCache
---     selectOneMaybeArtistCacheHelper
---     selectOneMaybeArtist
---     insertOneArtistCache
---   where
---     selectOneMaybeArtistCacheHelper filterBy = do
---       let prefix = getDbTableName
---           keyName = getKey (Proxy :: Proxy Artist) filterBy
---       cache <- CQ.selectOneMaybe prefix keyName
---       return $ case cache of
---         Just (ArtistCache artist) -> Just artist
---         _ -> Nothing
+      let artistCache' = cache ^. C.artistCache
+      CQ.selectMany keyName artistCache'
 
 -- insertOneArtistCache :: Maybe Artist -> FilterByOne -> R.ReaderIO ()
 -- insertOneArtistCache (Just artist) filterBy = do
@@ -107,6 +95,3 @@ getPredicate ::
   B.QGenExpr B.QValueContext Sqlite s B.SqlBool
 getPredicate (FilterById id') = \Artist {..} -> B.sqlBool_ (artistId ==. B.val_ id')
 getPredicate (FilterByName name) = \Artist {..} -> B.sqlBool_ (artistName ==. B.val_ name)
-
--- getPredicate (FilterByArtistIdAndArtistName id' name) = \Artist {..} -> B.sqlBool_ ((artistId ==. B.val_ id') &&. (artistName ==. B.val_ name))
--- getPredicate (FilterByArtistNameOrArtistNameL name nameL) = \Artist {..} -> B.sqlBool_ ((artistName ==. B.val_ name) ||. (artistName ==. B.val_ nameL))

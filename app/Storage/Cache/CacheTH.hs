@@ -1,14 +1,16 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Storage.Types.CacheTH where
+module Storage.Cache.CacheTH where
 
 import Control.Arrow (Arrow (second))
-import Control.Monad (when)
+import Control.Monad
+import Control.Monad.Trans.Class (MonadTrans (lift))
 import Data.Data (Proxy (Proxy))
 import Data.Function (on)
+import Data.IORef (newIORef)
 import Data.List (intersectBy)
 import Language.Haskell.TH
-import Storage.Types.CacheClass
+import Storage.Cache.Cache
 
 normalizeConstructor :: Con -> Q (Name, [(Name, Type)])
 normalizeConstructor con = do
@@ -65,14 +67,15 @@ handleGetAllKeys tableRecordName filterByName = do
       let (fname, _) = filterTypeInfo
       let (tname, _) = tableRecordInfo
       let cons = getFilterByConsInTableRecord tableRecordInfo filterTypeInfo
-      if null cons then do
-        return $ LitE $ StringL ""
-      else do
-        matches <- getMatches showE (tname, cons) fname
-        return $
-          CaseE
-            (VarE tableRecord)
-            [matches]
+      if null cons
+        then do
+          return $ LitE $ StringL ""
+        else do
+          matches <- getMatches showE (tname, cons) fname
+          return $
+            CaseE
+              (VarE tableRecord)
+              [matches]
     getFilterByConsInTableRecord (_, tCons) (_, fCons) = do
       let cons = intersectBy ((==) `on` fst) fCons tCons
       if length cons == length fCons then cons else []
@@ -102,4 +105,63 @@ deriveCacheClass tableRecordName filterByName = do
     instance CacheClass $(conT tableRecordName) $(conT filterByName) where
       getAllKeys _tableRecord Proxy = filter (not . null) $(handleGetAllKeys tableRecordName filterByName)
       getKey Proxy _filterBy = $(handleGetKey filterByName)
+    |]
+
+handleGetDefaultCache :: Name -> Q Exp
+handleGetDefaultCache cacheName = do
+  cacheTypeInfo <- getTypeInfo cacheName
+  getDefaultCacheHelper cacheTypeInfo
+  where
+    getDefaultCacheHelper [(pname, cnames)] = do
+      UInfixE (ConE pname) (VarE $ mkName "<$>") <$> getCnames cnames
+    getDefaultCacheHelper _ = fail "More than one constructor for Cache"
+    getCnames (_ : rest) = do
+      let iorefs = map (\_ -> AppE (VarE $ mkName "newIORef") (VarE $ mkName "mempty")) rest
+      return $ foldr (\c acc -> UInfixE c (VarE $ mkName "<*>") acc) (AppE (VarE $ mkName "newIORef") (VarE $ mkName "mempty")) iorefs
+    getCnames _ = fail "No constructors"
+
+handleStartCacheWorkers :: Name -> Name -> Q Exp
+handleStartCacheWorkers cacheName cacheChannelName = do
+  let cache = mkName "_cache"
+      cacheEnabled = mkName "_cacheEnabled"
+      cacheStrategy = mkName "_cacheStrategy"
+      cacheWorkerFunction = mkName "startCacheWorker"
+  cacheTypeInfo <- getTypeInfo cacheName
+  startTableCacheWorker cacheTypeInfo cache cacheEnabled cacheStrategy cacheWorkerFunction
+  where
+    startTableCacheWorker [(_, cacheCNames)] cache cacheEnabled cacheStrategy cacheWorkerFunction = do
+      cacheChannelTypeInfo <- getTypeInfo cacheChannelName
+      let [(channelPName, channelCNames)] = cacheChannelTypeInfo
+      let cacheChannels = map (\(cname, _) -> (nameBase cname, startTableCacheWorkerHelper cname cache cacheEnabled cacheStrategy cacheWorkerFunction)) cacheCNames
+      UInfixE (ConE channelPName) (VarE $ mkName "<$>") <$> getCnames channelCNames cacheChannels
+    startTableCacheWorker _ _ _ _ _ = fail "More than one constructor for Cache"
+    getCnames (fname : rest) cacheChannels = do
+      fname' <- getEachValue (fst fname) cacheChannels
+      foldM
+        ( \acc c -> do
+            n <- getEachValue (fst c) cacheChannels
+            return $ UInfixE acc (VarE $ mkName "<*>") n
+        )
+        fname'
+        rest
+    getCnames _ _ = fail "Illegal Constructor in CacheChannel"
+    getEachValue name cacheChannels = do
+      case lookup (nameBase name) cacheChannels of
+        Just f -> return f
+        Nothing -> fail "Illegal Constructor in CacheChannel"
+    startTableCacheWorkerHelper cname cache cacheEnabled cacheStrategy cacheWorkerFunction = do
+      let newCname = drop 1 $ show cname
+      let tableCache =  UInfixE (VarE cache) (VarE $ mkName "^.") (VarE $ mkName $ "C." <> newCname)
+      let tableCacheEnabled = UInfixE (VarE cacheEnabled) (VarE $ mkName "^.") (VarE $ mkName $ "C." <> newCname)
+      let tableCacheStrategy = UInfixE (VarE cacheStrategy) (VarE $ mkName "^.") (VarE $ mkName $ "C." <> newCname)
+      let tableMaxQueueSize = LitE $ IntegerL 1000
+      let tableMaxLRUSize = LitE $ IntegerL 1000
+      AppE (AppE (AppE (AppE (AppE (VarE cacheWorkerFunction) tableCache) tableCacheEnabled) tableCacheStrategy) tableMaxQueueSize) tableMaxLRUSize
+
+deriveCacheConfig :: Name -> Name -> Name -> Name -> Q [Dec]
+deriveCacheConfig cache cacheEnabled cacheStrategy cacheChannel = do
+  [d|
+    instance CacheConfig $(conT cache) $(conT cacheEnabled) $(conT cacheStrategy) $(conT cacheChannel) where
+      getDefaultCache Proxy Proxy Proxy Proxy = $(handleGetDefaultCache cache)
+      startCacheWorkers _cache _cacheEnabled _cacheStrategy Proxy = $(handleStartCacheWorkers cache cacheChannel)
     |]

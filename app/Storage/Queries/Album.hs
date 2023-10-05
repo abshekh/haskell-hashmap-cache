@@ -1,27 +1,17 @@
+{-# LANGUAGE RecordWildCards #-}
 module Storage.Queries.Album where
 
-import Data.Data (Proxy (Proxy))
-import Data.Int (Int32)
-import Data.Text (Text)
 import Database.Beam ((==.))
 import qualified Database.Beam as B
 import Database.Beam.Sqlite (Sqlite)
 import qualified Reader as R
-import qualified Storage.Queries.CacheQueries as CQ
 import qualified Storage.Queries.DBQueries as Q
 import Storage.Types.Album
 import Storage.FilterBy.Album
-import Storage.Types.Cache
-import Storage.Types.CacheClass
-import Storage.Types.CacheTH
 import qualified Storage.Types.DB as DB
-import Control.Monad.Trans.Class (MonadTrans(lift))
 
 getDbTable :: B.DatabaseEntity be DB.ChinookDb (B.TableEntity AlbumT)
 getDbTable = DB._album DB.chinookDb
-
--- getDbTableName :: String
--- getDbTableName = "Album"
 
 selectOneMaybeAlbum :: FilterByOneData -> R.ReaderIO (Maybe Album)
 selectOneMaybeAlbum filterBy = do

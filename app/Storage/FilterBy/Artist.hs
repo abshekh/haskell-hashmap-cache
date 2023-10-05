@@ -3,7 +3,7 @@ module Storage.FilterBy.Artist where
 import Data.Text (Text)
 import Data.Int (Int32)
 import Storage.Types.Artist
-import Storage.Types.CacheTH
+import Storage.Cache.CacheTH
 
 data FilterByOne
   = FilterByName {artistName :: Text}

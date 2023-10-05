@@ -1,1 +1,3 @@
 - move `maxQueueSize` as config variable
+- move `tableMaxQueueSize` as config
+- move `tableMaxLRUSize` as config

@@ -15,8 +15,8 @@ import Storage.Types.Artist
 type CacheQueue a f = (Chan.InChan (String, [a], DT.LocalTime, Proxy f), Chan.OutChan (String, [a], DT.LocalTime, Proxy f))
 
 data CacheChannel = CacheChannel
-  { _albumCache :: CacheQueue Album Album.FilterByOneData,
-    _artistCache :: CacheQueue Artist Artist.FilterByOne
+  { _albumCache :: Maybe (CacheQueue Album Album.FilterByOneData),
+    _artistCache :: Maybe (CacheQueue Artist Artist.FilterByOne)
   }
 
 makeFieldsNoPrefix ''CacheChannel

@@ -46,7 +46,7 @@ selectOneMaybeArtistCache filterBy = do
       lift $ putStrLn $ "Not found in cache querying DB: " ++ show filterBy
       cacheChannel <- R.getCacheChannel
       artist' <- selectOneMaybeArtist filterBy
-      let artistCacheChannel = cacheChannel ^. CH.artistCache
+      let artistCacheChannel = fromJust $ cacheChannel ^. CH.artistCache
       let artist'' = case artist' of
                               Nothing -> []
                               Just a -> [a]
@@ -67,7 +67,7 @@ selectAllArtistCache = do
       lift $ putStrLn "Not found all artists in cache querying DB"
       cacheChannel <- R.getCacheChannel
       artist' <- selectAllArtist
-      let artistCacheChannel = cacheChannel ^. CH.artistCache
+      let artistCacheChannel = fromJust $ cacheChannel ^. CH.artistCache
       CQ.insert keyName artist' (Proxy @FilterByOne) 5 artistCacheChannel
       return artist'
     Right a -> do

@@ -33,18 +33,18 @@ startCacheWorker ::
   CacheType ->
   Int ->
   Int -> -- make this maybe
-  IO (CacheQueue (a B.Identity) filterBy)
+  IO (Maybe (CacheQueue (a B.Identity) filterBy))
 startCacheWorker cache enabled cacheStrategy maxQueueSize _maxLRUSize = do
-  chan@(_, outChan) <- Chan.newChan maxQueueSize
-  if enabled
-    then case cacheStrategy of
+  if enabled then do
+    chan@(_, outChan) <- Chan.newChan maxQueueSize
+    case cacheStrategy of
       DefaultCache -> do
         startDefaultCacheWorker' cache outChan
-        return chan
+        return $ Just chan
       LRUCache -> do
         startLRUCacheWorker cache outChan _maxLRUSize
-        return chan
-    else return chan
+        return $ Just chan
+    else return Nothing
 
 startDefaultCacheWorker' ::
   (B.Table a, Show (B.PrimaryKey a B.Identity), CacheClass (a B.Identity) filterBy) =>

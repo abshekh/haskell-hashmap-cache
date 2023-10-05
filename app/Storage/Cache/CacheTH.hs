@@ -34,6 +34,13 @@ getTypeInfo dType = do
         _otherDec -> fail $ nameBase dType <> " is not a DateD, NewTypeD or TypeDataD"
     _otherInfo -> fail $ nameBase dType <> " is not a type definition"
 
+getSingleTypeInfo :: Name -> Q (Name, [(Name, Type)])
+getSingleTypeInfo dType = do
+  info <- getTypeInfo dType
+  case info of
+    [info'] -> return info'
+    _ -> fail $ nameBase dType <> " has more than one Constructor"
+
 handleGetKey :: Name -> Q Exp
 handleGetKey filterByName = do
   let filterBy = mkName "_filterBy"
@@ -120,8 +127,8 @@ handleGetDefaultCache cacheName = do
       return $ foldr (\c acc -> UInfixE c (VarE $ mkName "<*>") acc) (AppE (VarE $ mkName "newIORef") (VarE $ mkName "mempty")) iorefs
     getCnames _ = fail "No constructors"
 
-handleStartCacheWorkers :: Name -> Name -> Q Exp
-handleStartCacheWorkers cacheName cacheChannelName = do
+handleStartCacheWorkers :: Name -> Name -> Name -> Name -> Q Exp
+handleStartCacheWorkers cacheName cacheEnabledName cacheStrategyName cacheChannelName = do
   let cache = mkName "_cache"
       cacheEnabled = mkName "_cacheEnabled"
       cacheStrategy = mkName "_cacheStrategy"
@@ -132,7 +139,9 @@ handleStartCacheWorkers cacheName cacheChannelName = do
     startTableCacheWorker [(_, cacheCNames)] cache cacheEnabled cacheStrategy cacheWorkerFunction = do
       cacheChannelTypeInfo <- getTypeInfo cacheChannelName
       let [(channelPName, channelCNames)] = cacheChannelTypeInfo
-      let cacheChannels = map (\(cname, _) -> (nameBase cname, startTableCacheWorkerHelper cname cache cacheEnabled cacheStrategy cacheWorkerFunction)) cacheCNames
+      cacheChannels <- mapM (\(cname, _) -> do
+        x <- startTableCacheWorkerHelper cname cache cacheEnabled cacheStrategy cacheWorkerFunction
+        return (nameBase cname, x)) cacheCNames
       UInfixE (ConE channelPName) (VarE $ mkName "<$>") <$> getCnames channelCNames cacheChannels
     startTableCacheWorker _ _ _ _ _ = fail "More than one constructor for Cache"
     getCnames (fname : rest) cacheChannels = do
@@ -150,18 +159,20 @@ handleStartCacheWorkers cacheName cacheChannelName = do
         Just f -> return f
         Nothing -> fail "Illegal Constructor in CacheChannel"
     startTableCacheWorkerHelper cname cache cacheEnabled cacheStrategy cacheWorkerFunction = do
-      let newCname = drop 1 $ show cname
-      let tableCache =  UInfixE (VarE cache) (VarE $ mkName "^.") (VarE $ mkName $ "C." <> newCname)
-      let tableCacheEnabled = UInfixE (VarE cacheEnabled) (VarE $ mkName "^.") (VarE $ mkName $ "C." <> newCname)
-      let tableCacheStrategy = UInfixE (VarE cacheStrategy) (VarE $ mkName "^.") (VarE $ mkName $ "C." <> newCname)
+      (cachePName, _) <- getSingleTypeInfo cacheName
+      (cacheEnabledPName, _) <- getSingleTypeInfo cacheEnabledName
+      (cacheStrategyPName, _) <- getSingleTypeInfo cacheStrategyName
+      let tableCache = AppE (LamE [RecP cachePName [(cname, VarP cname)]] (VarE cname)) (VarE cache)
+      let tableCacheEnabled = AppE (LamE [RecP cacheEnabledPName [(cname, VarP cname)]] (VarE cname)) (VarE cacheEnabled)
+      let tableCacheStrategy = AppE (LamE [RecP cacheStrategyPName [(cname, VarP cname)]] (VarE cname)) (VarE cacheStrategy)
       let tableMaxQueueSize = LitE $ IntegerL 1000
       let tableMaxLRUSize = LitE $ IntegerL 1000
-      AppE (AppE (AppE (AppE (AppE (VarE cacheWorkerFunction) tableCache) tableCacheEnabled) tableCacheStrategy) tableMaxQueueSize) tableMaxLRUSize
+      return $ AppE (AppE (AppE (AppE (AppE (VarE cacheWorkerFunction) tableCache) tableCacheEnabled) tableCacheStrategy) tableMaxQueueSize) tableMaxLRUSize
 
 deriveCacheConfig :: Name -> Name -> Name -> Name -> Q [Dec]
 deriveCacheConfig cache cacheEnabled cacheStrategy cacheChannel = do
   [d|
     instance CacheConfig $(conT cache) $(conT cacheEnabled) $(conT cacheStrategy) $(conT cacheChannel) where
       getDefaultCache Proxy Proxy Proxy Proxy = $(handleGetDefaultCache cache)
-      startCacheWorkers _cache _cacheEnabled _cacheStrategy Proxy = $(handleStartCacheWorkers cache cacheChannel)
+      startCacheWorkers _cache _cacheEnabled _cacheStrategy Proxy = $(handleStartCacheWorkers cache cacheEnabled cacheStrategy cacheChannel)
     |]

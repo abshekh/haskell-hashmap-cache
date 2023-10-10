@@ -43,7 +43,7 @@ data CacheEnabled = CacheEnabled
   }
 makeFieldsNoPrefix ''CacheEnabled
 
-data CacheType = LRUCache | DefaultCache
+data CacheType = LRUCache | DefaultCacheWithEviction | DefaultCache
 
 data CacheStrategy = CacheStrategy
   { _albumCache :: CacheType,

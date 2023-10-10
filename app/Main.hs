@@ -28,7 +28,7 @@ main = do
     _albumCache = False
   }
   let cacheStrategy = CacheStrategy {
-    _artistCache = DefaultCache,
+    _artistCache = DefaultCacheWithEviction,
     _albumCache = LRUCache
   }
   cacheChannel' <- startCacheWorkers cache cacheEnabled cacheStrategy (Proxy @CacheChannel)
@@ -79,6 +79,10 @@ app = do
   artist <- selectOneArtistByName "AC/DC"
   lift $ print artist
   lift $ putStrLn ""
+
+  void selectAllArtist
+
+  lift $ threadDelay $ 5 * 1000 * 1000 -- seconds
 
   void selectAllArtist
   -- showCache

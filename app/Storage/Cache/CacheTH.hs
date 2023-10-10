@@ -41,8 +41,8 @@ getSingleTypeInfo dType = do
     [info'] -> return info'
     _ -> fail $ nameBase dType <> " has more than one Constructor"
 
-handleGetKey :: Name -> Q Exp
-handleGetKey filterByName = do
+handleGetKey :: Name -> Name -> Q Exp
+handleGetKey tableRecordName filterByName = do
   let filterBy = mkName "_filterBy"
       showE = mkName "show"
   filterTypeInfo <- getTypeInfo filterByName
@@ -56,7 +56,7 @@ handleGetKey filterByName = do
       wildCNames <- mapM getWildNames cnames
       let wildCPatterns = map (second VarP) wildCNames
       let pattern = RecP (mkName $ nameBase pname) wildCPatterns
-      let body = NormalB $ UInfixE (LitE (StringL $ "" <> nameBase pname)) (VarE $ mkName "++") (showWildNames showE wildCNames)
+      let body = NormalB $ UInfixE (LitE (StringL $ nameBase tableRecordName <> "-" <> nameBase pname)) (VarE $ mkName "++") (showWildNames showE wildCNames)
       return $ Match pattern body []
 
 handleGetAllKeys :: Name -> Name -> Q Exp
@@ -90,7 +90,7 @@ handleGetAllKeys tableRecordName filterByName = do
       wildCNames <- mapM getWildNames cnames
       let wildCPatterns = map (second VarP) wildCNames
       let pattern = RecP pname wildCPatterns
-      let body = NormalB $ UInfixE (LitE (StringL $ "" <> nameBase fname)) (VarE $ mkName "++") (showWildNames showE wildCNames)
+      let body = NormalB $ UInfixE (LitE (StringL $ nameBase tableRecordName <> "-" <> nameBase fname)) (VarE $ mkName "++") (showWildNames showE wildCNames)
       return $ Match pattern body []
 
 showWildNames :: Name -> [(a, Name)] -> Exp
@@ -111,7 +111,7 @@ deriveCacheClass tableRecordName filterByName = do
   [d|
     instance CacheClass $(conT tableRecordName) $(conT filterByName) where
       getAllKeys _tableRecord Proxy = filter (not . null) $(handleGetAllKeys tableRecordName filterByName)
-      getKey Proxy _filterBy = $(handleGetKey filterByName)
+      getKey Proxy _filterBy = $(handleGetKey tableRecordName filterByName)
     |]
 
 handleGetDefaultCache :: Name -> Q Exp

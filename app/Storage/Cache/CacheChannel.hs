@@ -12,7 +12,8 @@ import qualified Storage.FilterBy.Artist as Artist
 import Storage.Types.Album
 import Storage.Types.Artist
 
-type CacheQueue a f = (Chan.InChan (String, [a], DT.LocalTime, Proxy f), Chan.OutChan (String, [a], DT.LocalTime, Proxy f))
+data CacheAction = UPSERT | DELETE
+type CacheQueue a f = (Chan.InChan (String, [a], CacheAction, DT.LocalTime, Proxy f), Chan.OutChan (String, [a], CacheAction, DT.LocalTime, Proxy f))
 
 data CacheChannel = CacheChannel
   { _albumCache :: Maybe (CacheQueue Album Album.FilterByOneData),

@@ -11,7 +11,7 @@ import Reader as R
 import qualified Data.Time as DT
 
 import Storage.Cache.Cache
-import Storage.Cache.CacheChannel (CacheQueue)
+import Storage.Cache.CacheChannel (CacheQueue, CacheAction (UPSERT))
 
 data CacheError
   = NotFound
@@ -19,6 +19,7 @@ data CacheError
 
 selectOneMaybe :: String -> IORef (HM.HashMap DT.Text (CacheValue a)) -> ReaderIO (Either CacheError (Maybe a))
 selectOneMaybe keyName cacheIORef = do
+  lift $ putStrLn ("querying the key " <> keyName)
   cache <- lift $ readIORef cacheIORef
   selectOneMaybeHelper cache
   where
@@ -63,8 +64,7 @@ selectMany keyName cacheIORef = do
 insert :: String -> [a] -> Proxy f -> Int -> CacheQueue a f -> R.ReaderIO ()
 insert key val f expirySecs (inChan, _) = do
   insertionTime <- lift $ getCurrentLocalTimePlusSecs expirySecs
-  void $ lift $ Chan.tryWriteChan inChan (key, val, insertionTime, f)
-
+  void $ lift $ Chan.tryWriteChan inChan (key, val, UPSERT, insertionTime, f)
 
 ist :: DT.TimeZone
 ist = DT.TimeZone 330 False "IST"

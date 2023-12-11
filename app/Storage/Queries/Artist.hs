@@ -36,11 +36,11 @@ selectAllArtist = Q.selectAll getDbTable
 
 selectOneMaybeArtistCache :: FilterByOne -> R.ReaderIO (Maybe Artist)
 selectOneMaybeArtistCache filterBy = do
-  let keyName = getKey (Proxy @Artist) filterBy
+  let (cacheName, keyName) = getKey (Proxy @Artist) filterBy
   artist <- selectOneMaybeArtistCacheHelper keyName
   case artist of
     Right a -> do
-      lift $ putStrLn $ "Found in cache: " ++ show filterBy
+      lift $ putStrLn $ "Found in cache: " ++ cacheName ++ ", " ++ show filterBy
       return a
     Left _ -> do
       lift $ putStrLn $ "Not found in cache querying DB: " ++ show filterBy

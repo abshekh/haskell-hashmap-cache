@@ -28,10 +28,11 @@ main = do
     _albumCache = False
   }
   let cacheStrategy = CacheStrategy {
-    _artistCache = DefaultCacheWithEviction,
+    _artistCache = DefaultCache,
     _albumCache = LRUCache
   }
-  cacheChannel' <- startCacheWorkers cache cacheEnabled cacheStrategy (Proxy @CacheChannel)
+  (cacheChannel', threadIds) <- startCacheWorkers cache cacheEnabled cacheStrategy (Proxy @CacheChannel)
+  print threadIds
 
   -- (albumCacheChan, albumCacheThreadId) <- startAlbumCacheWorker cache
   -- (artistCacheChan, artistCacheThreadId) <- startArtistCacheWorker cache

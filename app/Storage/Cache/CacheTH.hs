@@ -56,7 +56,11 @@ handleGetKey tableRecordName filterByName = do
       wildCNames <- mapM getWildNames cnames
       let wildCPatterns = map (second VarP) wildCNames
       let pattern = RecP (mkName $ nameBase pname) wildCPatterns
-      let body = NormalB $ UInfixE (LitE (StringL $ nameBase tableRecordName <> "-" <> nameBase pname)) (VarE $ mkName "++") (showWildNames showE wildCNames)
+      let body = NormalB ( TupE
+                        [ Just $ LitE (StringL $ nameBase tableRecordName),
+                          Just $ UInfixE (LitE (StringL $ nameBase tableRecordName <> "-" <> nameBase pname)) (VarE $ mkName "++") (showWildNames showE wildCNames)
+                        ]
+                    )
       return $ Match pattern body []
 
 handleGetAllKeys :: Name -> Name -> Q Exp
@@ -139,21 +143,58 @@ handleStartCacheWorkers cacheName cacheEnabledName cacheStrategyName cacheChanne
     startTableCacheWorker [(_, cacheCNames)] cache cacheEnabled cacheStrategy cacheWorkerFunction = do
       cacheChannelTypeInfo <- getTypeInfo cacheChannelName
       let [(channelPName, channelCNames)] = cacheChannelTypeInfo
-      cacheChannels <- mapM (\(cname, _) -> do
-        x <- startTableCacheWorkerHelper cname cache cacheEnabled cacheStrategy cacheWorkerFunction
-        return (nameBase cname, x)) cacheCNames
-      UInfixE (ConE channelPName) (VarE $ mkName "<$>") <$> getCnames channelCNames cacheChannels
+      cacheChannels <-
+        mapM
+          ( \(cname, _) -> do
+              x <- startTableCacheWorkerHelper cname cache cacheEnabled cacheStrategy cacheWorkerFunction
+              return (nameBase cname, x)
+          )
+          cacheCNames
+      getCnames (ConE channelPName) channelCNames cacheChannels
     startTableCacheWorker _ _ _ _ _ = fail "More than one constructor for Cache"
-    getCnames (fname : rest) cacheChannels = do
+    getCnames cons (fname : rest) cacheChannels = do
       fname' <- getEachValue (fst fname) cacheChannels
+      let fChannelName = mkName "accChannel"
+      let fThreadIdName = mkName "accThreadId"
+      let fExp =
+            DoE
+              Nothing
+              [ BindS (TupP [VarP fChannelName, VarP fThreadIdName]) fname',
+                NoBindS $
+                  AppE
+                    (VarE $ mkName "return")
+                    ( TupE
+                        [ Just $ AppE cons (VarE fChannelName),
+                          Just $ UInfixE (ConE $ mkName "[]") (VarE $ mkName "++") (VarE fThreadIdName)
+                        ]
+                    )
+
+              ]
       foldM
         ( \acc c -> do
             n <- getEachValue (fst c) cacheChannels
-            return $ UInfixE acc (VarE $ mkName "<*>") n
+            let cChannelName = mkName "channel"
+            let cThreadIdName = mkName "threadId"
+            let accChannelName = mkName "accChannel"
+            let accThreadIdName = mkName "accThreadId"
+            return $
+              DoE
+                Nothing
+                [ BindS (TupP [VarP cChannelName, VarP cThreadIdName]) n,
+                  BindS (TupP [VarP accChannelName, VarP accThreadIdName]) acc,
+                  NoBindS $
+                    AppE
+                      (VarE $ mkName "return")
+                      ( TupE
+                          [ Just $ AppE (VarE accChannelName) (VarE cChannelName),
+                            Just $ UInfixE (VarE accThreadIdName) (VarE $ mkName "++") (VarE cThreadIdName)
+                          ]
+                      )
+                ]
         )
-        fname'
+        fExp
         rest
-    getCnames _ _ = fail "Illegal Constructor in CacheChannel"
+    getCnames _ _ _ = fail "Illegal Constructor in CacheChannel"
     getEachValue name cacheChannels = do
       case lookup (nameBase name) cacheChannels of
         Just f -> return f

@@ -1,9 +1,10 @@
+{-# LANGUAGE TemplateHaskell #-}
 module Storage.Cache.Queries where
 
 import qualified Control.Concurrent.Chan.Unagi.Bounded as Chan
 import Control.Monad (void)
 import Control.Monad.Trans.Class (MonadTrans (lift))
-import Data.Data (Proxy)
+import Data.Data (Proxy, typeOf)
 import qualified Data.HashMap.Strict as HM
 import Data.IORef (IORef, readIORef)
 import qualified Data.Text as DT

@@ -35,18 +35,19 @@ startCacheWorker ::
   CacheType ->
   Int ->
   Int -> -- make this maybe
-  IO (Maybe (CacheQueue (a B.Identity) filterBy))
+  IO (Maybe (CacheQueue (a B.Identity) filterBy), [ThreadId])
 startCacheWorker cache enabled cacheStrategy maxQueueSize _maxLRUSize = do
   if enabled
     then do
+      putStrLn "starting cache worker"
       chan@(inChan, outChan) <- Chan.newChan maxQueueSize
       case cacheStrategy of
         DefaultCache -> do
-          startDefaultCacheWorker' cache outChan
-          return $ Just chan
+          threadId <- startDefaultCacheWorker' cache outChan
+          return (Just chan, [threadId])
         DefaultCacheWithEviction -> do
-          startDefaultCacheWorker' cache outChan
-          void $ forkIO $ forever $ do
+          threadId <- startDefaultCacheWorker' cache outChan
+          evictionThreadId <- forkIO $ forever $ do
             threadDelay (5 * 1000 * 1000)
             cache' <- readIORef cache
             currentTimestamp <- getCurrentLocalTime
@@ -59,19 +60,19 @@ startCacheWorker cache enabled cacheStrategy maxQueueSize _maxLRUSize = do
                     )
                     cache'
             mapM (\k -> Chan.writeChan inChan (T.unpack k, [], DELETE, currentTimestamp, Proxy @filterBy)) (HM.keys keysToBeDeleted)
-          return $ Just chan
+          return (Just chan, [threadId, evictionThreadId])
         LRUCache -> do
-          startLRUCacheWorker cache outChan _maxLRUSize
-          return $ Just chan
-    else return Nothing
+          threadId <- startLRUCacheWorker cache outChan _maxLRUSize
+          return (Just chan, [threadId])
+    else return (Nothing, [])
 
 startDefaultCacheWorker' ::
   (B.Table a, Show (B.PrimaryKey a B.Identity), CacheClass (a B.Identity) filterBy) =>
   IORef (CacheMap (a B.Identity)) ->
   Chan.OutChan (String, [a B.Identity], CacheAction, DT.LocalTime, Proxy filterBy) ->
-  IO ()
+  IO ThreadId
 startDefaultCacheWorker' cache outChan = do
-  void $ forkIO $ forever $ cacheWorker outChan cache
+  forkIO $ forever $ cacheWorker outChan cache
 
 startDefaultCacheWorker ::
   (B.Table a, Show (B.PrimaryKey a B.Identity), CacheClass (a B.Identity) filterBy) =>
@@ -91,10 +92,10 @@ startLRUCacheWorker ::
   IORef (CacheMap (a B.Identity)) ->
   Chan.OutChan (String, [a B.Identity], CacheAction, DT.LocalTime, Proxy filterBy) ->
   Int ->
-  IO ()
+  IO ThreadId
 startLRUCacheWorker cache outChan _maxLRUSize = do
   -- create an LRU of size maxLRUSize
-  void $ forkIO $ forever $ cacheWorker outChan cache
+  forkIO $ forever $ cacheWorker outChan cache
 
 startArtistCacheWorker :: Cache -> IO (CacheQueue Artist Artist.FilterByOne, ThreadId)
 startArtistCacheWorker cache = startDefaultCacheWorker (cache ^. C.artistCache) 1000

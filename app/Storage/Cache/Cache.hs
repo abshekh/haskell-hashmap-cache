@@ -12,6 +12,7 @@ import Data.Text
 import qualified Data.Time as DT
 import Storage.Types.Album
 import Storage.Types.Artist
+import Control.Concurrent (ThreadId)
 
 data CacheValue a
   = ReferenceId (Maybe Text, DT.LocalTime)
@@ -35,22 +36,22 @@ makeFieldsNoPrefix ''Cache
 
 class CacheClass tableRecord filterBy where
   getAllKeys :: tableRecord -> Proxy filterBy -> [String]
-  getKey :: Proxy tableRecord -> filterBy -> String
+  getKey :: Proxy tableRecord -> filterBy -> (String, String)
 
 data CacheEnabled = CacheEnabled
-  { _albumCache :: Bool,
-    _artistCache :: Bool
+  { _albumCache :: Bool
+    ,_artistCache :: Bool
   }
 makeFieldsNoPrefix ''CacheEnabled
 
 data CacheType = LRUCache | DefaultCacheWithEviction | DefaultCache
 
 data CacheStrategy = CacheStrategy
-  { _albumCache :: CacheType,
-    _artistCache :: CacheType
+  { _albumCache :: CacheType
+    ,_artistCache :: CacheType
   }
 makeFieldsNoPrefix ''CacheStrategy
 
 class CacheConfig cache cacheEnabled cacheStrategy cacheChannel where
   getDefaultCache :: Proxy cache -> Proxy cacheEnabled -> Proxy cacheStrategy -> Proxy cacheChannel -> IO cache
-  startCacheWorkers :: cache -> cacheEnabled -> cacheStrategy -> Proxy cacheChannel -> IO cacheChannel
+  startCacheWorkers :: cache -> cacheEnabled -> cacheStrategy -> Proxy cacheChannel -> IO (cacheChannel, [ThreadId])
